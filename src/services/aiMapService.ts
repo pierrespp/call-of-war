@@ -42,9 +42,10 @@ export class AIMapRateLimitError extends Error {
 }
 
 async function parseError(res: Response): Promise<Error> {
-  let body: { error?: string; retryAfterSeconds?: number } = {};
+  let body: { error?: string; details?: string; retryAfterSeconds?: number } = {};
   try { body = await res.json(); } catch { /* empty */ }
-  const message = body.error || `Erro ${res.status}`;
+  let message = body.error || `Erro ${res.status}`;
+  if (body.details) message += `\nDetalhes da API: ${body.details}`;
   if (res.status === 429 && typeof body.retryAfterSeconds === "number") {
     return new AIMapRateLimitError(message, body.retryAfterSeconds);
   }

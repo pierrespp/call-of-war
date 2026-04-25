@@ -399,66 +399,27 @@ function persistAIMapRecords(maps: AIMapRecord[]): void {
   }
 }
 
-/** Upload a base64 image buffer to Firebase Storage using the REST API.
- *  Returns the public download URL on success. */
+/** Upload a base64 image buffer locally.
+ *  Returns the local API URL to fetch the image. */
 async function uploadToFirebaseStorage(
   imageBase64: string,
   mimeType: string,
   fileName: string,
 ): Promise<string> {
-  const apiKey = process.env.VITE_FIREBASE_API_KEY;
-  const bucket = process.env.VITE_FIREBASE_STORAGE_BUCKET;
-  if (!apiKey || !bucket) {
-    throw new Error(
-      "Firebase Storage não configurado — variáveis VITE_FIREBASE_API_KEY e VITE_FIREBASE_STORAGE_BUCKET são necessárias.",
-    );
-  }
-
   const buffer = Buffer.from(imageBase64, "base64");
-  const storagePath = `ai-generated-maps/${fileName}`;
-  const encodedPath = encodeURIComponent(storagePath);
-
-  const uploadUrl =
-    `https://firebasestorage.googleapis.com/v0/b/${bucket}/o` +
-    `?name=${encodedPath}&uploadType=media&key=${apiKey}`;
-
-  const response = await fetch(uploadUrl, {
-    method: "POST",
-    headers: { "Content-Type": mimeType },
-    body: buffer,
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Firebase Storage upload falhou (${response.status}): ${text}`);
-  }
-
-  const result = (await response.json()) as { name: string; bucket: string };
-  return (
-    `https://firebasestorage.googleapis.com/v0/b/${result.bucket}/o/` +
-    `${encodeURIComponent(result.name)}?alt=media`
-  );
+  const targetDir = path.join(__dirname, "data", "maps");
+  fs.mkdirSync(targetDir, { recursive: true });
+  fs.writeFileSync(path.join(targetDir, fileName), buffer);
+  return `/api/maps/img/${fileName}`;
 }
 
-/** Delete a file from Firebase Storage by its public download URL. Best-effort. */
+/** Delete a file from local storage */
 async function deleteFromFirebaseStorage(imageUrl: string): Promise<void> {
-  const apiKey = process.env.VITE_FIREBASE_API_KEY;
-  const bucket = process.env.VITE_FIREBASE_STORAGE_BUCKET;
-  if (!apiKey || !bucket) return;
-
-  const match = imageUrl.match(/\/o\/([^?]+)/);
-  if (!match) return;
-
-  const filePath = decodeURIComponent(match[1]);
-  const encodedPath = encodeURIComponent(filePath);
-
-  try {
-    await fetch(
-      `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?key=${apiKey}`,
-      { method: "DELETE" },
-    );
-  } catch (err) {
-    console.warn("⚠️ Não foi possível apagar imagem do Firebase Storage:", err);
+  if (!imageUrl.startsWith('/api/maps/img/')) return;
+  const fileName = imageUrl.replace('/api/maps/img/', '');
+  const targetPath = path.join(__dirname, "data", "maps", decodeURIComponent(fileName));
+  if (fs.existsSync(targetPath)) {
+    fs.unlinkSync(targetPath);
   }
 }
 
@@ -1459,6 +1420,17 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Serve generated map images
+  app.get("/api/maps/img/:fileName", (req, res) => {
+    const fileName = req.params.fileName;
+    const targetPath = path.join(__dirname, "data", "maps", decodeURIComponent(fileName));
+    if (fs.existsSync(targetPath)) {
+      res.sendFile(targetPath);
+    } else {
+      res.status(404).send("Image not found");
+    }
+  });
+
   // ── AI Map Generator ─────────────────────────────────────────────────────
   // Status endpoint so the client can show a live "X/8 in last minute" counter
   // and disable the Generate button when the limiter is empty.
@@ -1505,7 +1477,7 @@ async function startServer() {
         detectedCover,
         timestamp: Date.now(),
       });
-    } catch (err) {
+    } catch (err: any) {
       if (err instanceof GeminiRateLimitError) {
         return res.status(429).json({
           error: err.message,
@@ -1516,8 +1488,9 @@ async function startServer() {
         return res.status(503).json({ error: err.message });
       }
       console.error("⚠️ Falha na geração de mapa pela IA:", err);
-      const message = err instanceof Error ? err.message : "Erro desconhecido na geração.";
-      return res.status(500).json({ error: message });
+      const message = err?.message || "Erro desconhecido na geração.";
+      const details = err?.status || err?.stack || JSON.stringify(err) || "Sem detalhes da API Google";
+      return res.status(500).json({ error: message, details });
     }
   });
 

@@ -262,10 +262,6 @@ export function DeployScreen({ roomId, playerToken, playerTeam, state, onLeave }
             width: mapInfo.gridWidth * CELL_SIZE,
             height: mapInfo.gridHeight * CELL_SIZE,
             backgroundColor: "#1a1a1a",
-            backgroundImage: `url("${getImageUrl(mapInfo.imagePath)}")`,
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "0 0",
           }}
           onClick={(e) => {
             const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
@@ -277,6 +273,13 @@ export function DeployScreen({ roomId, playerToken, playerTeam, state, onLeave }
             placeOrSwap(gx, gy);
           }}
         >
+          {/* Map image using img tag for better rendering */}
+          <img
+            src={getImageUrl(mapInfo.imagePath)}
+            alt={`Map ${mapInfo.name}`}
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          />
+
           {/* Grid */}
           {zoom > 0.15 && (
             <div className="absolute inset-0 pointer-events-none z-10 mix-blend-overlay opacity-80" style={{

@@ -4,6 +4,7 @@ import { CoverType, MapCoverData } from "../types/game";
 import { validateDeployZones } from "../utils/pathfinding";
 import { getImageUrl } from "../lib/utils";
 import { Shield, ShieldAlert, ArrowLeft, Save, Eraser, Square, Droplet, Flag, Grid3x3, RotateCcw, DoorClosed, DoorOpen, AppWindow } from "lucide-react";
+import { useImages } from "../contexts/ImageContext";
 
 interface BrushOption {
   id: CoverType;
@@ -32,6 +33,7 @@ const BRUSHES: BrushOption[] = [
 type ToolMode = "draw" | "pan";
 
 export function MapEditorMenu({ onBack }: { onBack: () => void }) {
+  const { getMapImage } = useImages();
   const [selectedMap, setSelectedMap] = useState("cidade_ruinas");
   const [coverData, setCoverData] = useState<MapCoverData>({});
   const [zoom, setZoom] = useState(0.4);
@@ -354,17 +356,17 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
           }}
         >
           {/* Map image — fixed size, anchored top-left, doesn't scale with the grid slider. */}
-          <div
+          <img
+            src={getMapImage(selectedMap)}
+            alt={`Map ${selectedMap}`}
             className="absolute pointer-events-none"
             style={{
               left: 0,
               top: 0,
               width: mapW,
               height: mapH,
-              backgroundImage: `url("${getImageUrl(mapInfo.imagePath)}")`,
-              backgroundRepeat: "no-repeat",
-              backgroundSize: "cover",
-              backgroundPosition: "0 0",
+              objectFit: "cover",
+              objectPosition: "0 0",
             }}
           />
 

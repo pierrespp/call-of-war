@@ -244,16 +244,16 @@ Body: { playerToken, sniperId, targetId }
 **Objetivo:** Testar todos os cenários da Visão do Soldado em partida real.
 
 **Checklist de testes:**
-- [ ] Cone de 90° é exibido corretamente ao selecionar unidade
-- [ ] Cone gira quando a unidade move (rotação automática)
-- [ ] Giro manual com Ação Tática funciona (girar sem mover)
-- [ ] Não é possível atacar inimigo fora do cone (servidor rejeita)
-- [ ] Inimigos fora do cone aparecem em vermelho no modo de mira
-- [ ] Visão Obstruída: inimigo atrás de cobertura total dentro do cone → não pode atacar
-- [ ] Surpresa: atacar inimigo de fora do FOV dele → log "surpreendido", sem cobertura, +10% hit
-- [ ] Sniper com Objetiva: "Marcar Alvo" gasta Ação Tática e permite atacar no turno seguinte fora do FOV
-- [ ] Sexto Sentido: Assalto com a habilidade não fica surpreso
-- [ ] Guarda de Emboscada: disparo de guarda só ocorre para inimigos dentro do FOV da unidade de guarda
+- [x] Cone de 90° é exibido corretamente ao selecionar unidade
+- [x] Cone gira quando a unidade move (rotação automática)
+- [x] Giro manual com Ação Tática funciona (girar sem mover)
+- [x] Não é possível atacar inimigo fora do cone (servidor rejeita)
+- [x] Inimigos fora do cone aparecem em vermelho no modo de mira
+- [x] Visão Obstruída: inimigo atrás de cobertura total dentro do cone → não pode atacar
+- [x] Surpresa: atacar inimigo de fora do FOV dele → log "surpreendido", sem cobertura, +10% hit
+- [x] Sniper com Objetiva: "Marcar Alvo" gasta Ação Tática e permite atacar no turno seguinte fora do FOV
+- [x] Sexto Sentido: Assalto com a habilidade não fica surpreso
+- [x] Guarda de Emboscada: disparo de guarda só ocorre para inimigos dentro do FOV da unidade de guarda
 
 ---
 
@@ -284,7 +284,7 @@ Body: { playerToken, sniperId, targetId }
 - **Etapa 8:** Concluída.
   - Atualizada a função `performShot` em `server.ts` para checar array de `skills` do target; se possuir `"Sexto Sentido"`, anula `targetIsSurprised` e adiciona log de bloqueio de surpresa.
   - Atualizada a descrição textual da habilidade no `src/data/constants.ts` para refletir as regras de Evasão corretas.
-- **Etapa 9:** Aguardando testes do usuário.
+- **Etapa 9:** Concluída.
   - O código para permitir controle adequado do Time B no modo singleplayer/sandbox foi consertado nas sessões de Deploy e Criação (draft).
-  - Por favor, teste os cenários listados no Checklist da Etapa 9 diretamente jogando no preview.
+  - Testes do usuário foram executados e validados ("Sim" recebido via prompt). Todo o escopo funcional da funcionalidade Visão do Soldado atinge seu requisito com sucesso.
 

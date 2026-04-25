@@ -1076,17 +1076,18 @@ export default function App() {
             transform: `scale(${zoom}) translate(${-camera.x}px, ${-camera.y}px)`,
             width: MAPS[gameState.mapId] ? MAPS[gameState.mapId].gridWidth * CELL_SIZE : 4000,
             height: MAPS[gameState.mapId] ? MAPS[gameState.mapId].gridHeight * CELL_SIZE : 4000,
-            ...(MAPS[gameState.mapId]
-              ? {
-                  backgroundColor: "#1a1a1a",
-                  backgroundImage: `url("${getImageUrl(MAPS[gameState.mapId].imagePath)}")`,
-                  backgroundRepeat: "no-repeat",
-                  backgroundSize: "cover",
-                  backgroundPosition: "0 0",
-                }
-              : { backgroundColor: "#1a1a1a", backgroundImage: "none" }),
+            backgroundColor: "#1a1a1a",
           }}
         >
+          {/* Map image using img tag for better rendering */}
+          {MAPS[gameState.mapId] && (
+            <img
+              src={getImageUrl(MAPS[gameState.mapId].imagePath)}
+              alt={`Map ${MAPS[gameState.mapId].name}`}
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            />
+          )}
+
           {/* Grid */}
           {zoom > 0.15 && (
             <div className="absolute inset-0 pointer-events-none z-10 mix-blend-overlay opacity-80" style={{

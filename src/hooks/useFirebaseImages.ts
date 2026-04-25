@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
+import { MAPS } from '../data/constants';
+import { getImageUrl } from '../lib/utils';
 
 interface ImageCache {
   [key: string]: string;
@@ -32,8 +34,12 @@ export const useFirebaseImages = () => {
 
       setRoleImages(roles);
       setMapImages(maps);
-    } catch (error) {
-      console.error('Erro ao carregar imagens do Firebase:', error);
+    } catch (error: any) {
+      if (error?.code === 'permission-denied') {
+        console.warn('Acesso ao Firebase negado. Usando imagens locais como fallback. Verifique as regras de segurança (Firestore Rules).');
+      } else {
+        console.warn('Não foi possível carregar imagens do Firebase. Usando imagens locais.');
+      }
     } finally {
       setLoading(false);
     }
@@ -41,12 +47,12 @@ export const useFirebaseImages = () => {
 
   const getRoleImage = (roleName: string): string => {
     const key = roleName.toLowerCase();
-    return roleImages[key] || `./roles/${key}.png`;
+    return roleImages[key] || getImageUrl(`/roles/${key}.png`);
   };
 
   const getMapImage = (mapName: string): string => {
     const key = mapName.toLowerCase();
-    return mapImages[key] || `./maps/${key}.png`;
+    return mapImages[key] || (MAPS[mapName] ? getImageUrl(MAPS[mapName].imagePath) : getImageUrl(`/maps/${key}.jpg`));
   };
 
   return {
