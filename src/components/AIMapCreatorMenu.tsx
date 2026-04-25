@@ -138,6 +138,11 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedMapId, setSavedMapId] = useState<string | null>(null);
 
+  const [showSaveDraftDialog, setShowSaveDraftDialog] = useState(false);
+  const [showLoadDraftDialog, setShowLoadDraftDialog] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const cellSize = CELL_SIZE;
@@ -324,6 +329,47 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
     setShowSaveDialog(false);
     setGenerationResult(null);
     onBack();
+  };
+
+  const handleConfirmSaveDraft = async () => {
+    if (!draftName.trim() || paintedCount === 0) return;
+    try {
+      await aiMapService.saveDraft({
+        name: draftName.trim(),
+        gridWidth,
+        gridHeight,
+        coverData,
+        userPrompt,
+      });
+      alert("Rascunho salvo com sucesso no servidor!");
+      setShowSaveDraftDialog(false);
+    } catch (e) {
+      alert("Erro ao salvar rascunho: " + (e instanceof Error ? e.message : "desconhecido"));
+    }
+  };
+
+  const handleExternalImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // We already have coverData mapped from the painted legend!
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUri = event.target?.result as string;
+      // Extract base64
+      const [prefix, base64] = dataUri.split(',');
+      const mime = prefix.split(':')[1].split(';')[0];
+      
+      setGenerationResult({
+        generatedImage: base64,
+        mimeType: mime,
+        detectedCover: coverData, // USE EXISTING PAINTED LEGEND!
+      });
+      setShowCoverOverlay(true);
+    };
+    reader.readAsDataURL(file);
+    
+    e.target.value = ""; // reset
   };
 
   const canvasCursor = toolMode === "draw" ? "cursor-crosshair" : "cursor-move";
@@ -564,6 +610,38 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
           >
             Exportar P/ Geração Manual
           </button>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <button
+              onClick={() => {
+                setDraftName("");
+                setShowSaveDraftDialog(true);
+              }}
+              disabled={paintedCount === 0}
+              className="w-full text-xs flex items-center justify-center gap-1 bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-200 font-bold py-2 rounded transition-colors"
+            >
+              <Save size={14} /> Salvar Rascunho
+            </button>
+            <button
+              onClick={() => setShowLoadDraftDialog(true)}
+              className="w-full text-xs flex items-center justify-center gap-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-200 font-bold py-2 rounded transition-colors"
+            >
+              <RefreshCw size={14} /> Carregar Rascunho
+            </button>
+          </div>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={paintedCount === 0}
+            className="w-full text-xs flex items-center justify-center gap-2 bg-indigo-900/50 hover:bg-indigo-800 text-indigo-300 font-bold py-2 rounded border border-indigo-700/50 transition-colors mt-2 disabled:opacity-40"
+          >
+             Importar Mapa Gerado Externamente
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={handleExternalImageUpload}
+          />
           {!canGenerate && !isGenerating && paintedCount === 0 && (
             <p className="text-[11px] text-neutral-500 text-center mt-2">
               Pinte ao menos uma célula pra liberar a geração.
@@ -688,6 +766,39 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
           onConfirm={handleConfirmSave}
           onCancel={handleCloseSaveDialog}
           onBackToMenu={handleBackToMenuAfterSave}
+        />
+      )}
+
+      {showSaveDraftDialog && (
+        <div className="absolute inset-0 z-[60] bg-black/75 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-neutral-800 border border-neutral-700 rounded-xl w-full max-w-md shadow-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-lg font-black text-white flex items-center gap-2">Salvar Rascunho da Legenda</h3>
+            <input
+              type="text"
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              placeholder="Nome do rascunho"
+              autoFocus
+              className="w-full bg-neutral-900 border border-neutral-600 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+            <div className="flex gap-3 mt-2">
+               <button onClick={() => setShowSaveDraftDialog(false)} className="flex-1 py-2 rounded-lg border border-neutral-600 text-neutral-300 hover:bg-neutral-700 font-bold">Cancelar</button>
+               <button onClick={handleConfirmSaveDraft} disabled={!draftName.trim()} className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold">Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLoadDraftDialog && (
+        <LoadDraftDialog
+          onCancel={() => setShowLoadDraftDialog(false)}
+          onLoad={(draft) => {
+             setGridWidth(draft.gridWidth);
+             setGridHeight(draft.gridHeight);
+             setCoverData(draft.coverData);
+             if (draft.userPrompt) setUserPrompt(draft.userPrompt);
+             setShowLoadDraftDialog(false);
+          }}
         />
       )}
     </div>
@@ -1046,6 +1157,54 @@ function SaveMapDialog({
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+interface LoadDraftDialogProps {
+  onCancel: () => void;
+  onLoad: (draft: any) => void;
+}
+
+function LoadDraftDialog({ onCancel, onLoad }: LoadDraftDialogProps) {
+  const [drafts, setDrafts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    aiMapService.listDrafts().then(d => {
+      setDrafts(d);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  return (
+    <div className="absolute inset-0 z-[60] bg-black/75 backdrop-blur-sm flex items-center justify-center p-6" onClick={onCancel}>
+      <div className="bg-neutral-800 border border-neutral-700 rounded-xl w-full max-w-md shadow-2xl p-6 flex flex-col gap-4 max-h-[80vh]" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-black text-white flex items-center gap-2">
+          Carregar Rascunho
+        </h3>
+        {loading ? (
+          <p className="text-neutral-400">Carregando...</p>
+        ) : drafts.length === 0 ? (
+          <p className="text-neutral-400">Nenhum rascunho encontrado.</p>
+        ) : (
+          <div className="flex flex-col gap-2 overflow-y-auto pr-2">
+            {drafts.map(d => (
+              <button
+                key={d.id}
+                onClick={() => onLoad(d)}
+                className="text-left bg-neutral-900 border border-neutral-700 p-3 rounded hover:bg-neutral-700 hover:border-indigo-500 transition-colors"
+              >
+                <div className="font-bold text-white">{d.name}</div>
+                <div className="text-xs text-neutral-500">{d.gridWidth}x{d.gridHeight} • {new Date(d.updatedAt).toLocaleString()}</div>
+              </button>
+            ))}
+          </div>
+        )}
+        <button onClick={onCancel} className="mt-2 py-2 rounded-lg border border-neutral-600 text-neutral-300 hover:bg-neutral-700 font-bold transition-colors">
+          Cancelar
+        </button>
       </div>
     </div>
   );

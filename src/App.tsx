@@ -2,7 +2,9 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import { GameState, Unit, MapCoverData, CoverType, PendingGuardShot } from "./types/game";
 import { SCALE, CELL_SIZE, METERS_PER_CELL, ARMORS, WEAPONS, SKILLS, ATTACHMENTS, MAPS, CLASSES } from "./data/constants";
 import { cn } from "./lib/utils";
+// ... 
 import { getImageUrl } from "./lib/utils";
+import { useImages } from "./contexts/ImageContext";
 import { Crosshair, Move, Shield, Heart, Activity, Info, X, Map as MapIcon, Copy, Check, LogOut, Users, UserPlus, RotateCcw, Zap, Eye, ChevronsDown } from "lucide-react";
 import { SoldiersInfoMenu } from "./components/SoldiersInfoMenu";
 import { CreateMatchMenu } from "./components/CreateMatchMenu";
@@ -17,6 +19,7 @@ import { computeShotCover } from "./utils/cover";
 type AppState = "login" | "lobby" | "createMatch" | "deploy" | "waiting" | "battle" | "soldiers" | "editor" | "aiMapCreator";
 
 export default function App() {
+  const { getMapImage, getRoleImage } = useImages();
   // ── Auth / Session ────────────────────────────────────────────────────────
   const [appState, setAppState] = useState<AppState>("login");
   const [playerName, setPlayerName] = useState("");
@@ -1082,7 +1085,7 @@ export default function App() {
           {/* Map image using img tag for better rendering */}
           {MAPS[gameState.mapId] && (
             <img
-              src={getImageUrl(MAPS[gameState.mapId].imagePath)}
+              src={getMapImage(gameState.mapId)}
               alt={`Map ${MAPS[gameState.mapId].name}`}
               className="absolute inset-0 w-full h-full object-cover pointer-events-none"
             />
@@ -1269,7 +1272,7 @@ export default function App() {
 
                 <div
                   className="w-full h-full rounded-full bg-cover bg-center flex items-center justify-center overflow-hidden relative z-0"
-                  style={{ backgroundImage: `url("${getImageUrl('/roles/' + CLASSES[unit.className]?.name.toLowerCase() + '.png')}")`, boxShadow: "inset 0 0 10px rgba(0,0,0,0.5)" }}
+                  style={{ backgroundImage: `url("${getRoleImage(CLASSES[unit.className]?.name || "")}")`, boxShadow: "inset 0 0 10px rgba(0,0,0,0.5)" }}
                 >
                   {!["assalto", "suporte", "médico", "granadeiro", "sniper"].includes(CLASSES[unit.className]?.name.toLowerCase()) && (
                     <div className="text-[10px] font-bold text-white tracking-tighter drop-shadow-md">

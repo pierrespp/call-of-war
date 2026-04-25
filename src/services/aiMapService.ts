@@ -34,6 +34,16 @@ export interface AIMapListItem {
   createdAt: number;
 }
 
+export interface AIMapDraft {
+  id?: string;
+  name: string;
+  gridWidth: number;
+  gridHeight: number;
+  coverData: Record<string, string>;
+  userPrompt: string;
+  updatedAt?: number;
+}
+
 export class AIMapRateLimitError extends Error {
   constructor(message: string, public readonly retryAfterSeconds: number) {
     super(message);
@@ -87,6 +97,27 @@ export const aiMapService = {
 
   async delete(mapId: string): Promise<void> {
     const res = await fetch(`/api/ai-maps/${mapId}`, { method: "DELETE" });
+    if (!res.ok) throw await parseError(res);
+  },
+
+  async saveDraft(draft: AIMapDraft): Promise<AIMapDraft> {
+    const res = await fetch("/api/ai-maps/drafts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(draft),
+    });
+    if (!res.ok) throw await parseError(res);
+    return res.json();
+  },
+
+  async listDrafts(): Promise<AIMapDraft[]> {
+    const res = await fetch("/api/ai-maps/drafts");
+    if (!res.ok) throw await parseError(res);
+    return res.json();
+  },
+
+  async deleteDraft(draftId: string): Promise<void> {
+    const res = await fetch(`/api/ai-maps/drafts/${draftId}`, { method: "DELETE" });
     if (!res.ok) throw await parseError(res);
   },
 };

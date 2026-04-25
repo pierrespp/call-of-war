@@ -399,6 +399,36 @@ function persistAIMapRecords(maps: AIMapRecord[]): void {
   }
 }
 
+interface AIMapDraft {
+  id: string;
+  name: string;
+  gridWidth: number;
+  gridHeight: number;
+  coverData: Record<string, string>;
+  userPrompt: string;
+  updatedAt: number;
+}
+
+const AI_MAPS_DRAFTS_FILE = path.join(__dirname, "data", "ai-maps-drafts.json");
+
+function loadAIMapDrafts(): AIMapDraft[] {
+  try {
+    const raw = fs.readFileSync(AI_MAPS_DRAFTS_FILE, "utf-8");
+    return JSON.parse(raw) as AIMapDraft[];
+  } catch {
+    return [];
+  }
+}
+
+function persistAIMapDrafts(drafts: AIMapDraft[]): void {
+  try {
+    fs.mkdirSync(path.dirname(AI_MAPS_DRAFTS_FILE), { recursive: true });
+    fs.writeFileSync(AI_MAPS_DRAFTS_FILE, JSON.stringify(drafts, null, 2), "utf-8");
+  } catch (err) {
+    console.error("⚠️ Falha ao persistir ai-maps-drafts.json:", err);
+  }
+}
+
 /** Upload a base64 image buffer locally.
  *  Returns the local API URL to fetch the image. */
 async function uploadToFirebaseStorage(
@@ -1291,6 +1321,50 @@ async function startServer() {
     if (pgPool) {
       try { await pgPool.query("DELETE FROM map_grid_settings WHERE map_id = $1", [req.params.mapId]); }
       catch (err) { console.error(`⚠️ Falha ao remover configurações de grid do mapa ${req.params.mapId}:`, err); }
+    }
+    res.json({ success: true });
+  });
+
+  // ── AI Map Drafts ────────────────────────────────────────────────────────
+  app.get("/api/ai-maps/drafts", (req, res) => {
+    res.json(loadAIMapDrafts().sort((a, b) => b.updatedAt - a.updatedAt));
+  });
+
+  app.post("/api/ai-maps/drafts", (req, res) => {
+    const { id, name, gridWidth, gridHeight, coverData, userPrompt } = req.body as AIMapDraft;
+    if (!name || !gridWidth || !gridHeight || !coverData) {
+      return res.status(400).json({ error: "Dados incompletos para rascunho." });
+    }
+    
+    const drafts = loadAIMapDrafts();
+    const existingIdx = drafts.findIndex((d) => d.id === id);
+    
+    const draft: AIMapDraft = {
+      id: id || `draft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name,
+      gridWidth,
+      gridHeight,
+      coverData,
+      userPrompt: userPrompt || "",
+      updatedAt: Date.now(),
+    };
+
+    if (existingIdx >= 0) {
+      drafts[existingIdx] = draft;
+    } else {
+      drafts.push(draft);
+    }
+    persistAIMapDrafts(drafts);
+    res.json(draft);
+  });
+
+  app.delete("/api/ai-maps/drafts/:draftId", (req, res) => {
+    const { draftId } = req.params;
+    const drafts = loadAIMapDrafts();
+    const idx = drafts.findIndex((d) => d.id === draftId);
+    if (idx !== -1) {
+      drafts.splice(idx, 1);
+      persistAIMapDrafts(drafts);
     }
     res.json({ success: true });
   });

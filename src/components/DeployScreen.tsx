@@ -4,6 +4,7 @@ import { apiService, RoomStateResponse } from "../services/apiService";
 import { DeployZone, DraftUnit, MapCoverData } from "../types/game";
 import { Check, X, ArrowLeft } from "lucide-react";
 import { getImageUrl } from "../lib/utils";
+import { useImages } from "../contexts/ImageContext";
 
 interface Props {
   roomId: string;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function DeployScreen({ roomId, playerToken, playerTeam, state, onLeave }: Props) {
+  const { getMapImage, getRoleImage } = useImages();
   const mapId = state.draft.selectedMap;
   const mapInfo = MAPS[mapId];
   const myDraft: DraftUnit[] = state.draft.teams[playerTeam] || [];
@@ -275,7 +277,7 @@ export function DeployScreen({ roomId, playerToken, playerTeam, state, onLeave }
         >
           {/* Map image using img tag for better rendering */}
           <img
-            src={getImageUrl(mapInfo.imagePath)}
+            src={getMapImage(mapId)}
             alt={`Map ${mapInfo.name}`}
             className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           />
