@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+       return id is string && id.size() <= 128;
+    }
+
+    // Rooms: players with the ID can read/write. 
+    // In this specific app, rooms are often public or shared by code.
+    match /rooms/{roomId} {
+      allow read, write: if true; // Public access for game rooms
+    }
+
+    // AI Maps: Published maps are readable by everyone, writable by authenticated users
+    match /ai-maps/{mapId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // AI Map Drafts: Owned by the user (simulated by isSignedIn for now)
+    match /ai-map-drafts/{draftId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Map Covers & Settings: Public read, authenticated write
+    match /map-covers/{mapId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+    
+    match /map-grid-settings/{mapId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Tokens collection (from storageService)
+    match /tokens/{tokenId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+  }
+}

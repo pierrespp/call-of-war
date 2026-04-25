@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { CLASSES, WEAPONS, ARMORS, ATTACHMENTS, SKILLS, MAPS } from "../data/constants";
 import { apiService, RoomStateResponse } from "../services/apiService";
 import { DraftUnit } from "../types/game";
-import { Check, X } from "lucide-react";
+import { Check, X, Save, Download, Trash2, Shield } from "lucide-react";
 import { getImageUrl } from "../lib/utils";
 
 const MAX_POINTS = 100;
@@ -21,6 +21,49 @@ export function CreateMatchMenu({ roomId, playerToken, playerTeam, state, onBack
   const [units, setUnits] = useState<DraftUnit[]>([]);
   const [selectedMap, setSelectedMap] = useState("cidade_ruinas");
   const [savingTeam, setSavingTeam] = useState(false);
+  const [savedArmies, setSavedArmies] = useState<Record<string, DraftUnit[]>>({});
+
+  // Load saved armies from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("cowSavedArmies");
+    if (saved) {
+      try {
+        setSavedArmies(JSON.parse(saved));
+      } catch (e) {
+        console.error("Erro ao carregar exércitos salvos:", e);
+      }
+    }
+  }, []);
+
+  const saveCurrentArmy = () => {
+    if (units.length === 0) {
+      setErrorMsg("Adicione unidades antes de salvar.");
+      return;
+    }
+    const name = prompt("Nome para este exército:");
+    if (!name) return;
+    
+    const newSaved = { ...savedArmies, [name]: [...units] };
+    setSavedArmies(newSaved);
+    localStorage.setItem("cowSavedArmies", JSON.stringify(newSaved));
+  };
+
+  const loadArmy = (name: string) => {
+    const loaded = savedArmies[name];
+    if (loaded) {
+      // Re-generate IDs to avoid duplicates if loaded multiple times
+      const fresh = loaded.map(u => ({ ...u, id: crypto.randomUUID() }));
+      updateUnits(fresh);
+    }
+  };
+
+  const deleteArmy = (name: string) => {
+    if (!confirm(`Excluir exército "${name}"?`)) return;
+    const newSaved = { ...savedArmies };
+    delete newSaved[name];
+    setSavedArmies(newSaved);
+    localStorage.setItem("cowSavedArmies", JSON.stringify(newSaved));
+  };
   const [savingMap, setSavingMap] = useState(false);
   const [savingReady, setSavingReady] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -224,8 +267,57 @@ export function CreateMatchMenu({ roomId, playerToken, playerTeam, state, onBack
           <div className="mb-4 p-3 bg-red-900/40 border border-red-700 rounded text-sm text-red-200">{errorMsg}</div>
         )}
 
-        <div className="flex gap-4">
-          <div className="w-1/3 flex flex-col gap-3">
+        <div className="flex gap-4 items-stretch">
+          {/* Saved Armies Column */}
+          <div className="w-1/4 bg-neutral-900/50 border border-neutral-700/50 p-4 rounded-xl flex flex-col gap-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-2">
+                <Shield size={14} /> Pré-Salvos
+              </h3>
+              <button 
+                onClick={saveCurrentArmy}
+                className="text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded font-bold transition-colors flex items-center gap-1"
+                title="Salvar exército atual"
+              >
+                <Save size={10} /> Salvar Atual
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-2 max-h-[600px] pr-2 custom-scrollbar">
+              {Object.keys(savedArmies).length === 0 ? (
+                <p className="text-xs text-neutral-600 italic text-center py-8">Nenhum exército salvo.</p>
+              ) : (
+                Object.keys(savedArmies).map(name => (
+                  <div key={name} className="bg-neutral-800 border border-neutral-700 p-2 rounded-lg group hover:border-indigo-500 transition-all">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-white truncate flex-1 mr-2" title={name}>{name}</span>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => loadArmy(name)}
+                          className="p-1 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded transition-all"
+                          title="Carregar"
+                        >
+                          <Download size={12} />
+                        </button>
+                        <button 
+                          onClick={() => deleteArmy(name)}
+                          className="p-1 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white rounded transition-all"
+                          title="Excluir"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-neutral-500">
+                      {savedArmies[name].length} un. · {savedArmies[name].reduce((acc, u) => acc + calcUnitCost(u), 0)} pts
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col gap-3">
             {units.map(u => (
               <div key={u.id} className="bg-neutral-900 border border-neutral-700 p-4 rounded-xl relative group">
                 <button onClick={() => removeUnit(u.id)} className="absolute top-2 right-2 text-red-500/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
@@ -305,7 +397,7 @@ export function CreateMatchMenu({ roomId, playerToken, playerTeam, state, onBack
             </button>
           </div>
 
-          <div className="w-2/3 border-l border-neutral-700 pl-6 flex flex-col justify-between">
+          <div className="w-1/3 border-l border-neutral-700 pl-6 flex flex-col justify-between">
             <div>
               <h3 className="text-xl text-white font-bold mb-4">Resumo do Exército</h3>
               {units.length === 0 ? (

@@ -46,13 +46,40 @@ export const FOVOverlay: React.FC<FOVOverlayProps> = ({ unit }) => {
   }
 
   const arcPath = `M ${cx} ${cy} L ${startX} ${startY} A ${radiusPx} ${radiusPx} 0 0 1 ${endX} ${endY} Z`;
-  const color = unit.team === "A" ? "rgba(37, 99, 235, 0.15)" : "rgba(220, 38, 38, 0.15)";
-  const strokeColor = unit.team === "A" ? "rgba(37, 99, 235, 0.4)" : "rgba(220, 38, 38, 0.4)";
+  const isGuarding = unit.stance === "guard";
+  const color = unit.team === "A" 
+    ? (isGuarding ? "rgba(37, 99, 235, 0.25)" : "rgba(37, 99, 235, 0.15)") 
+    : (isGuarding ? "rgba(220, 38, 38, 0.25)" : "rgba(220, 38, 38, 0.15)");
+    
+  const strokeColor = unit.team === "A" ? "rgba(37, 99, 235, 0.6)" : "rgba(220, 38, 38, 0.6)";
 
   return (
     <svg className="absolute inset-0 pointer-events-none z-[8]" style={{ width: "100%", height: "100%", overflow: "visible" }}>
       {/* Base 40m 90° FOV */}
-      <path d={arcPath} fill={color} stroke={strokeColor} strokeWidth="2" strokeDasharray="4 4" />
+      <path 
+        d={arcPath} 
+        fill={color} 
+        stroke={strokeColor} 
+        strokeWidth={isGuarding ? "3" : "2"} 
+        strokeDasharray={isGuarding ? "0" : "4 4"} 
+        className={isGuarding ? "drop-shadow-[0_0_8px_rgba(37,99,235,0.4)]" : ""}
+      />
+      
+      {/* Visual Indicator text for Guard */}
+      {isGuarding && (
+        <text 
+          x={cx} 
+          y={cy - radiusPx - 10} 
+          fill={strokeColor} 
+          fontSize="14" 
+          fontWeight="900" 
+          textAnchor="middle" 
+          className="uppercase tracking-tighter"
+          style={{ textShadow: "0 0 4px rgba(0,0,0,0.5)" }}
+        >
+          POSTURA DE GUARDA
+        </text>
+      )}
       
       {/* Extended Frontal FOV for Sniper + Objetiva */}
       {isSniper && hasObjetiva && (

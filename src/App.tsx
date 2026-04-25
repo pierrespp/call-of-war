@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { GameState, Unit, MapCoverData, CoverType, PendingGuardShot } from "./types/game";
-import { SCALE, CELL_SIZE, METERS_PER_CELL, ARMORS, WEAPONS, SKILLS, ATTACHMENTS, CLASSES } from "./data/constants";
+import { SCALE, CELL_SIZE, METERS_PER_CELL, ARMORS, WEAPONS, SKILLS, ATTACHMENTS, MAPS, CLASSES } from "./data/constants";
 import { cn } from "./lib/utils";
 // ... 
 import { getImageUrl } from "./lib/utils";
 import { useImages } from "./contexts/ImageContext";
-import { useMaps } from "./contexts/MapContext";
-import { Crosshair, Move, Shield, Heart, Activity, Info, X, Map as MapIcon, Copy, Check, LogOut, Users, UserPlus, RotateCcw, Zap, Eye, ChevronsDown } from "lucide-react";
+import { Crosshair, Move, Shield, Heart, Activity, Info, X, Map as MapIcon, Copy, Check, LogOut, Users, UserPlus, RotateCcw, Zap, Eye, ChevronsDown, DoorOpen, Ghost } from "lucide-react";
 import { SoldiersInfoMenu } from "./components/SoldiersInfoMenu";
 import { CreateMatchMenu } from "./components/CreateMatchMenu";
 import { MapEditorMenu } from "./components/MapEditorMenu";
@@ -21,7 +20,6 @@ type AppState = "login" | "lobby" | "createMatch" | "deploy" | "waiting" | "batt
 
 export default function App() {
   const { getMapImage, getRoleImage } = useImages();
-  const { maps } = useMaps();
   // ── Auth / Session ────────────────────────────────────────────────────────
   const [appState, setAppState] = useState<AppState>("login");
   const [playerName, setPlayerName] = useState("");
@@ -74,6 +72,8 @@ export default function App() {
   const [coverHoverLabel, setCoverHoverLabel] = useState<string | null>(null);
   const [mouseScreenPos, setMouseScreenPos] = useState({ x: 0, y: 0 });
   const [sandboxTokens, setSandboxTokens] = useState<{ A: string, B: string } | null>(null);
+  const [showIndicators, setShowIndicators] = useState(false);
+  const [lastSeenEnemies, setLastSeenEnemies] = useState<Record<string, Unit>>({});
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const isMyTurn = playerTeam === currentTurn;
@@ -399,23 +399,56 @@ export default function App() {
     if (targetMode !== "move" || !selectedUnitId || !gameState) return;
     const unit = gameState.units[selectedUnitId];
     if (!unit) return;
-    const mapInfo = maps[gameState.mapId];
+    const mapInfo = MAPS[gameState.mapId];
     if (!mapInfo) return;
     const armorPenal = unit.armorName ? (ARMORS[unit.armorName]?.movePenal || 0) : 0;
     const classInfo = CLASSES[unit.className];
     let baseMove = (classInfo?.movement || SCALE.MOVIMENTO_BASE) - armorPenal;
     if (unit.stance === "prone") baseMove = Math.min(baseMove, 3);
     const remaining = Math.max(0, baseMove + (unit.extraMoveMeters || 0) - (unit.movedThisTurn || 0));
-    const occupied = new Set<string>();
+    const enemyOccupied = new Set<string>();
+    const allyOccupied = new Set<string>();
     for (const u of Object.values(gameState.units) as Unit[]) {
       if (u.id === unit.id) continue;
-      occupied.add(`${Math.floor(u.x / CELL_SIZE)},${Math.floor(u.y / CELL_SIZE)}`);
+      const key = `${Math.floor(u.x / CELL_SIZE)},${Math.floor(u.y / CELL_SIZE)}`;
+      if (u.team === unit.team) allyOccupied.add(key);
+      else enemyOccupied.add(key);
     }
     const startGx = Math.floor(unit.x / CELL_SIZE);
     const startGy = Math.floor(unit.y / CELL_SIZE);
-    const reach = computeReachable(startGx, startGy, mapInfo.gridWidth, mapInfo.gridHeight, mapCoverConfig, occupied, remaining);
+    const reach = computeReachable(startGx, startGy, mapInfo.gridWidth, mapInfo.gridHeight, mapCoverConfig, enemyOccupied, allyOccupied, remaining);
     setMoveReachable(reach);
   }, [targetMode, selectedUnitId, gameState, mapCoverConfig]);
+
+  // ── Fog of War Logic ───────────────────────────────────────────────────────
+  const isEnemyVisible = useCallback((enemy: Unit): boolean => {
+    if (!gameState || !playerTeam) return true;
+    if (enemy.team === playerTeam) return true;
+    const myUnits = Object.values(gameState.units).filter(u => (u as Unit).team === playerTeam);
+    return myUnits.some(myUnit => isInFOVClient(myUnit as Unit, enemy));
+  }, [gameState, playerTeam]);
+
+  useEffect(() => {
+    if (!gameState || !playerTeam) return;
+    const enemies = Object.values(gameState.units).filter(u => (u as Unit).team !== playerTeam);
+    
+    setLastSeenEnemies(prev => {
+      let changed = false;
+      const next = { ...prev };
+      enemies.forEach(enemyObj => {
+        const enemy = enemyObj as Unit;
+        if (isEnemyVisible(enemy)) {
+          // If already there and same values, skip update to avoid loop if any
+          const p = next[enemy.id];
+          if (!p || p.x !== enemy.x || p.y !== enemy.y || p.hp !== enemy.hp || p.stance !== enemy.stance) {
+            next[enemy.id] = { ...enemy };
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [gameState, playerTeam, isEnemyVisible]);
 
   const handleCanvasClick = async (e: React.MouseEvent) => {
     if (isPanning || !canvasRef.current || !gameState) return;
@@ -607,11 +640,20 @@ export default function App() {
   };
 
   const handleGuardActivate = () => {
-    if (!selectedUnitId || !gameState) return;
+    if (!selectedUnitId || !gameState || !roomId || !playerToken) return;
     const u = gameState.units[selectedUnitId];
     if (!u) return;
-    if (!u.actions.intervention) { alert("Sem Ação de Intervenção disponível."); return; }
-    setFacingMode("guard");
+    if (!u.actions.intervention) {
+      alert("Sem Ação de Intervenção disponível.");
+      return;
+    }
+
+    // Activate guard immediately with current rotation
+    apiService
+      .guardUnit(roomId, playerToken, selectedUnitId, u.rotation)
+      .then((r) => setGameState(r.gameState))
+      .catch((e) => alert(e instanceof Error ? e.message : "Erro ao ativar guarda"))
+      .finally(() => setFacingMode(null));
   };
 
   const handleSetFacingClick = (worldX: number, worldY: number) => {
@@ -633,6 +675,38 @@ export default function App() {
         .catch((e) => alert(e instanceof Error ? e.message : "Erro"))
         .finally(() => setFacingMode(null));
     }
+  };
+
+  const handleToggleDoor = async (cellKey: string) => {
+    if (!roomId || !playerToken || !selectedUnitId) return;
+    try {
+      const result = await apiService.toggleDoor(roomId, playerToken, selectedUnitId, cellKey);
+      setGameState(result.gameState);
+      setMapCoverConfig(result.mapCover);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erro ao interagir com a porta");
+    }
+  };
+
+  const getNearbyDoors = (unit: Unit) => {
+    const gx = Math.floor(unit.x / CELL_SIZE);
+    const gy = Math.floor(unit.y / CELL_SIZE);
+    const neighbours = [
+      { gx: gx + 1, gy: gy },
+      { gx: gx - 1, gy: gy },
+      { gx: gx, gy: gy + 1 },
+      { gx: gx, gy: gy - 1 },
+      { gx: gx + 1, gy: gy + 1 },
+      { gx: gx - 1, gy: gy - 1 },
+      { gx: gx + 1, gy: gy - 1 },
+      { gx: gx - 1, gy: gy + 1 },
+    ];
+    
+    return neighbours.filter(n => {
+      const key = `${n.gx},${n.gy}`;
+      const type = mapCoverConfig[key];
+      return type === "doorOpen" || type === "doorClose";
+    }).map(n => `${n.gx},${n.gy}`);
   };
 
   const computeGuardShotInfo = (pending: PendingGuardShot) => {
@@ -1049,6 +1123,20 @@ export default function App() {
           <button onClick={handleLeave} className="bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-neutral-300 px-3 py-1 text-xs rounded transition-colors font-bold shadow-lg flex items-center gap-1">
             <LogOut size={12} /> Sair
           </button>
+          
+          <button 
+            onClick={() => setShowIndicators(!showIndicators)} 
+            className={cn(
+              "border px-3 py-1 text-xs rounded transition-all font-bold shadow-lg flex items-center gap-1",
+              showIndicators 
+                ? "bg-indigo-600 border-indigo-400 text-white" 
+                : "bg-neutral-800 border-neutral-700 text-neutral-400 hover:bg-neutral-700"
+            )}
+            title="Alternar visibilidade de indicadores de cobertura"
+          >
+            <Eye size={12} /> {showIndicators ? "Ocultar Indicadores" : "Mostrar Indicadores"}
+          </button>
+
           <div className="bg-black/80 px-3 py-1 rounded text-xs text-neutral-400 font-mono pointer-events-none shadow-lg border border-neutral-800 flex items-center gap-2">
             <span>SALA: {roomId}</span>
             <span className="text-neutral-600">|</span>
@@ -1079,16 +1167,16 @@ export default function App() {
             left: "50%", top: "50%",
             transformOrigin: "0 0",
             transform: `scale(${zoom}) translate(${-camera.x}px, ${-camera.y}px)`,
-            width: maps[gameState.mapId] ? maps[gameState.mapId].gridWidth * CELL_SIZE : 4000,
-            height: maps[gameState.mapId] ? maps[gameState.mapId].gridHeight * CELL_SIZE : 4000,
+            width: MAPS[gameState.mapId] ? MAPS[gameState.mapId].gridWidth * CELL_SIZE : 4000,
+            height: MAPS[gameState.mapId] ? MAPS[gameState.mapId].gridHeight * CELL_SIZE : 4000,
             backgroundColor: "#1a1a1a",
           }}
         >
           {/* Map image using img tag for better rendering */}
-          {maps[gameState.mapId] && (
+          {MAPS[gameState.mapId] && (
             <img
-              src={getImageUrl(maps[gameState.mapId].imagePath)}
-              alt={`Map ${maps[gameState.mapId].name}`}
+              src={getMapImage(gameState.mapId)}
+              alt={`Map ${MAPS[gameState.mapId].name}`}
               className="absolute inset-0 w-full h-full object-cover pointer-events-none"
             />
           )}
@@ -1104,7 +1192,7 @@ export default function App() {
           {/* Cover Cells (visual only — pointer-events-none so units stay clickable)
               In battle phase overlays are hidden; only the data remains for gameplay logic.
               In deploy phase overlays remain fully visible to help the player position units. */}
-          {appState !== "battle" && Object.entries(mapCoverConfig).map(([key, type]) => {
+          {(appState !== "battle" || showIndicators) && Object.entries(mapCoverConfig).map(([key, type]) => {
             if (type === "none") return null;
             const [gx, gy] = key.split(",").map(Number);
             let bgColor = "transparent";
@@ -1178,8 +1266,17 @@ export default function App() {
             </svg>
           )}
 
-          {/* FOV Overlay */}
-          <FOVOverlay unit={selectedUnit} />
+          {/* FOV Overlay for Selected Unit and Guarding Units (Owner only) */}
+          {Object.values(gameState.units).map((u) => {
+            const unit = u as Unit;
+            const isSelected = unit.id === selectedUnitId;
+            const isMyGuardingUnit = unit.team === playerTeam && unit.stance === "guard";
+            
+            if (isSelected || isMyGuardingUnit) {
+              return <FOVOverlay key={`fov-${unit.id}`} unit={unit} />;
+            }
+            return null;
+          })}
 
           {/* Shoot Line */}
           {pendingShootAction && gameState.units[pendingShootAction.sourceId] && gameState.units[pendingShootAction.targetId] && (
@@ -1219,106 +1316,128 @@ export default function App() {
           )}
 
           {/* Units */}
-          {Object.values(gameState.units).map((unit: Unit) => {
-            const isSelected = unit.id === selectedUnitId;
-            const isEnemy = unit.team !== (selectedUnit?.team ?? unit.team);
-            const isMyUnit = unit.team === playerTeam;
-            const unitClassInfo = CLASSES[unit.className];
-            const maxHp = unitClassInfo?.hp ?? unit.hp;
-            const hpPercent = maxHp > 0 ? Math.max(0, Math.min(100, (unit.hp / maxHp) * 100)) : 0;
-            const weapon = unit.weaponName ? WEAPONS[unit.weaponName] : null;
-            let rangePx = 0;
-            if (isSelected && targetMode === "shoot" && weapon) {
-              if (weapon.range === "Curto") rangePx = (SCALE.ALCANCE_CURTO / METERS_PER_CELL) * CELL_SIZE;
-              else if (weapon.range === "Médio") rangePx = (SCALE.ALCANCE_MEDIO / METERS_PER_CELL) * CELL_SIZE;
-              else if (weapon.range === "Longo") rangePx = (SCALE.ALCANCE_LONGO / METERS_PER_CELL) * CELL_SIZE;
-            }
+          {(() => {
+            const myUnits = gameState ? Object.values(gameState.units).filter(u => (u as Unit).team === playerTeam) as Unit[] : [];
+            const visibleEnemies = gameState ? Object.values(gameState.units).filter(u => (u as Unit).team !== playerTeam && isEnemyVisible(u as Unit)) as Unit[] : [];
+            
+            // For ghosts: enemies that are in lastSeenEnemies but NOT in visibleEnemies
+            const ghosts = Object.values(lastSeenEnemies).filter(ghostObj => {
+              const ghost = ghostObj as Unit;
+              return !visibleEnemies.some(ve => ve.id === ghost.id) && 
+              // and if they are still in game (not dead in current known game state)
+              gameState?.units[ghost.id]
+            }) as Unit[];
 
-            // Token fills ~88% of the cell so it sits snugly inside the grid square.
-            const TOKEN_SIZE = Math.round(CELL_SIZE * 0.88);   // e.g. 44px for a 50px cell
-            const HP_BAR_W  = Math.round(CELL_SIZE * 0.92);   // slightly wider than token
+            return [...myUnits, ...visibleEnemies, ...ghosts.map(g => ({ ...g, isGhost: true }))].map((unit: any) => {
+              const isGhost = !!unit.isGhost;
+              const isSelected = unit.id === selectedUnitId && !isGhost;
+              const isEnemy = unit.team !== (playerTeam ?? unit.team);
+              const isMyUnit = unit.team === playerTeam;
+              const unitClassInfo = CLASSES[unit.className];
+              const maxHp = unitClassInfo?.hp ?? unit.hp;
+              const hpPercent = maxHp > 0 ? Math.max(0, Math.min(100, (unit.hp / maxHp) * 100)) : 0;
+              const weapon = unit.weaponName ? WEAPONS[unit.weaponName] : null;
+              let rangePx = 0;
+              if (isSelected && targetMode === "shoot" && weapon) {
+                if (weapon.range === "Curto") rangePx = (SCALE.ALCANCE_CURTO / METERS_PER_CELL) * CELL_SIZE;
+                else if (weapon.range === "Médio") rangePx = (SCALE.ALCANCE_MEDIO / METERS_PER_CELL) * CELL_SIZE;
+                else if (weapon.range === "Longo") rangePx = (SCALE.ALCANCE_LONGO / METERS_PER_CELL) * CELL_SIZE;
+              }
 
-            const fovState = targetMode === "shoot" && selectedUnit && isEnemy
-              ? getFOVState(selectedUnit, unit)
-              : null;
+              // Token fills ~88% of the cell so it sits snugly inside the grid square.
+              const TOKEN_SIZE = Math.round(CELL_SIZE * 0.88);   // e.g. 44px for a 50px cell
+              const HP_BAR_W  = Math.round(CELL_SIZE * 0.92);   // slightly wider than token
 
-            return (
-              <div
-                key={unit.id}
-                onClick={(e) => handleUnitClick(e, unit)}
-                className={cn(
-                  "absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-transform duration-300 flex items-center justify-center shadow-lg",
-                  unit.team === "A" ? "bg-blue-600 border-blue-300" : "bg-red-600 border-red-300",
-                  isSelected && "ring-4 ring-white ring-opacity-50 scale-110 z-10",
-                  targetMode === "shoot" && isEnemy && fovState === "visible" && "animate-pulse ring-4 ring-green-500 cursor-crosshair",
-                  targetMode === "shoot" && isEnemy && fovState === "marked" && "animate-pulse ring-4 ring-amber-500 cursor-crosshair",
-                  targetMode === "shoot" && isEnemy && (fovState === "out_of_cone" || fovState === "obstructed") && "ring-4 ring-red-500/50 opacity-60 cursor-not-allowed",
-                  targetMode === "mark" && isEnemy && "animate-pulse ring-4 ring-amber-500 cursor-crosshair",
-                  targetMode === "heal" && !isEnemy && !isSelected && "animate-pulse ring-4 ring-green-400 cursor-crosshair",
-                  isMyUnit && isMyTurn && !targetMode && "cursor-pointer hover:scale-105",
-                  !isMyUnit && !targetMode && "cursor-default opacity-90",
-                )}
-                style={{ left: unit.x, top: unit.y, width: TOKEN_SIZE, height: TOKEN_SIZE }}
-              >
+              const fovState = targetMode === "shoot" && selectedUnit && isEnemy && !isGhost
+                ? getFOVState(selectedUnit, unit)
+                : null;
+
+              return (
                 <div
-                  className="absolute left-1/2 -translate-x-1/2 flex flex-col gap-0.5 items-center pointer-events-none"
-                  style={{ top: -(Math.round(CELL_SIZE * 0.18)), width: HP_BAR_W }}
+                  key={unit.id + (isGhost ? "-ghost" : "")}
+                  onClick={(e) => !isGhost && handleUnitClick(e, unit)}
+                  className={cn(
+                    "absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-transform duration-300 flex items-center justify-center shadow-lg",
+                    unit.team === "A" ? "bg-blue-600 border-blue-300" : "bg-red-600 border-red-300",
+                    isGhost && "opacity-40 grayscale-[0.7] border-dashed scale-90 pointer-events-none z-0",
+                    isSelected && "ring-4 ring-white ring-opacity-50 scale-110 z-10",
+                    targetMode === "shoot" && isEnemy && fovState === "visible" && !isGhost && "animate-pulse ring-4 ring-green-500 cursor-crosshair",
+                    targetMode === "shoot" && isEnemy && fovState === "marked" && !isGhost && "animate-pulse ring-4 ring-amber-500 cursor-crosshair",
+                    targetMode === "shoot" && isEnemy && (fovState === "out_of_cone" || fovState === "obstructed") && !isGhost && "ring-4 ring-red-500/50 opacity-60 cursor-not-allowed",
+                    targetMode === "mark" && isEnemy && !isGhost && "animate-pulse ring-4 ring-amber-500 cursor-crosshair",
+                    targetMode === "heal" && !isEnemy && !isSelected && !isGhost && "animate-pulse ring-4 ring-green-400 cursor-crosshair",
+                    isMyUnit && isMyTurn && !targetMode && !isGhost && "cursor-pointer hover:scale-105",
+                    !isMyUnit && !targetMode && !isGhost && "cursor-default opacity-90",
+                  )}
+                  style={{ left: unit.x, top: unit.y, width: TOKEN_SIZE, height: TOKEN_SIZE }}
                 >
-                  <div className="w-full h-1.5 bg-black border border-neutral-800 rounded-full overflow-hidden">
-                    <div
-                      className={cn("h-full transition-all duration-300", hpPercent > 60 ? "bg-green-500" : hpPercent > 30 ? "bg-yellow-500" : "bg-red-500")}
-                      style={{ width: `${hpPercent}%` }}
-                    />
+                  <div
+                    className="absolute left-1/2 -translate-x-1/2 flex flex-col gap-0.5 items-center pointer-events-none"
+                    style={{ top: -(Math.round(CELL_SIZE * 0.18)), width: HP_BAR_W }}
+                  >
+                    {!isGhost && (
+                      <div className="w-full h-1.5 bg-black border border-neutral-800 rounded-full overflow-hidden">
+                        <div
+                          className={cn("h-full transition-all duration-300", hpPercent > 60 ? "bg-green-500" : hpPercent > 30 ? "bg-yellow-500" : "bg-red-500")}
+                          style={{ width: `${hpPercent}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
-                </div>
 
-                <div
-                  className="w-full h-full rounded-full bg-cover bg-center flex items-center justify-center overflow-hidden relative z-0"
-                  style={{ backgroundImage: `url("${getRoleImage(CLASSES[unit.className]?.name || "")}")`, boxShadow: "inset 0 0 10px rgba(0,0,0,0.5)" }}
-                >
-                  {!["assalto", "suporte", "médico", "granadeiro", "sniper"].includes(CLASSES[unit.className]?.name.toLowerCase()) && (
-                    <div className="text-[10px] font-bold text-white tracking-tighter drop-shadow-md">
-                      {CLASSES[unit.className]?.name.substring(0, 3).toUpperCase()}
-                    </div>
+                  <div
+                    className="w-full h-full rounded-full bg-cover bg-center flex items-center justify-center overflow-hidden relative z-0"
+                    style={{ backgroundImage: `url("${getRoleImage(CLASSES[unit.className]?.name || "")}")`, boxShadow: "inset 0 0 10px rgba(0,0,0,0.5)" }}
+                  >
+                    {!["assalto", "suporte", "médico", "granadeiro", "sniper"].includes(CLASSES[unit.className]?.name.toLowerCase()) && (
+                      <div className="text-[10px] font-bold text-white tracking-tighter drop-shadow-md">
+                        {CLASSES[unit.className]?.name.substring(0, 3).toUpperCase()}
+                      </div>
+                    )}
+                    {fovState === "obstructed" && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10 text-white font-bold opacity-80" style={{ fontSize: TOKEN_SIZE * 0.5 }}>
+                        🚫
+                      </div>
+                    )}
+                    {isGhost && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+                        <Ghost size={TOKEN_SIZE * 0.5} className="text-white/50" />
+                      </div>
+                    )}
+                  </div>
+
+                  {isSelected && !targetMode && !isGhost && (() => {
+                    const armorPenal = unit.armorName ? (ARMORS[unit.armorName]?.movePenal || 0) : 0;
+                    let baseMove = (unitClassInfo?.movement ?? SCALE.MOVIMENTO_BASE) - armorPenal;
+                    if (unit.stance === "prone") baseMove = Math.min(baseMove, 3);
+                    const remaining = Math.max(0, baseMove + (unit.extraMoveMeters || 0) - (unit.movedThisTurn || 0));
+                    const radiusPx = (remaining / METERS_PER_CELL) * CELL_SIZE;
+                    return (
+                      <div
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-green-400/60 bg-green-400/5 pointer-events-none"
+                        style={{ width: radiusPx * 2, height: radiusPx * 2 }}
+                      />
+                    );
+                  })()}
+                  {isSelected && targetMode === "shoot" && rangePx > 0 && !isGhost && (
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-red-500/30 bg-red-500/5 pointer-events-none"
+                      style={{ width: rangePx * 2, height: rangePx * 2 }} />
                   )}
-                  {fovState === "obstructed" && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10 text-white font-bold opacity-80" style={{ fontSize: TOKEN_SIZE * 0.5 }}>
-                      🚫
-                    </div>
+                  {isSelected && targetMode === "heal" && !isGhost && (
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-green-400/40 bg-green-400/5 pointer-events-none"
+                      style={{ width: (4.5 / METERS_PER_CELL) * CELL_SIZE * 2, height: (4.5 / METERS_PER_CELL) * CELL_SIZE * 2 }} />
+                  )}
+                  {isSelected && targetMode === "move" && !isGhost && (
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-green-500/50 bg-green-500/10 pointer-events-none"
+                      style={{
+                        width: (((unitClassInfo?.movement ?? SCALE.MOVIMENTO_BASE) - (ARMORS[unit.armorName ?? ""]?.movePenal ?? 0)) / METERS_PER_CELL) * CELL_SIZE * 2,
+                        height: (((unitClassInfo?.movement ?? SCALE.MOVIMENTO_BASE) - (ARMORS[unit.armorName ?? ""]?.movePenal ?? 0)) / METERS_PER_CELL) * CELL_SIZE * 2,
+                      }} />
                   )}
                 </div>
-
-                {isSelected && !targetMode && (() => {
-                  const armorPenal = unit.armorName ? (ARMORS[unit.armorName]?.movePenal || 0) : 0;
-                  let baseMove = (unitClassInfo?.movement ?? SCALE.MOVIMENTO_BASE) - armorPenal;
-                  if (unit.stance === "prone") baseMove = Math.min(baseMove, 3);
-                  const remaining = Math.max(0, baseMove + (unit.extraMoveMeters || 0) - (unit.movedThisTurn || 0));
-                  const radiusPx = (remaining / METERS_PER_CELL) * CELL_SIZE;
-                  return (
-                    <div
-                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-green-400/60 bg-green-400/5 pointer-events-none"
-                      style={{ width: radiusPx * 2, height: radiusPx * 2 }}
-                    />
-                  );
-                })()}
-                {isSelected && targetMode === "shoot" && rangePx > 0 && (
-                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-red-500/30 bg-red-500/5 pointer-events-none"
-                    style={{ width: rangePx * 2, height: rangePx * 2 }} />
-                )}
-                {isSelected && targetMode === "heal" && (
-                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-green-400/40 bg-green-400/5 pointer-events-none"
-                    style={{ width: (4.5 / METERS_PER_CELL) * CELL_SIZE * 2, height: (4.5 / METERS_PER_CELL) * CELL_SIZE * 2 }} />
-                )}
-                {isSelected && targetMode === "move" && (
-                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-green-500/50 bg-green-500/10 pointer-events-none"
-                    style={{
-                      width: (((unitClassInfo?.movement ?? SCALE.MOVIMENTO_BASE) - (ARMORS[unit.armorName ?? ""]?.movePenal ?? 0)) / METERS_PER_CELL) * CELL_SIZE * 2,
-                      height: (((unitClassInfo?.movement ?? SCALE.MOVIMENTO_BASE) - (ARMORS[unit.armorName ?? ""]?.movePenal ?? 0)) / METERS_PER_CELL) * CELL_SIZE * 2,
-                    }} />
-                )}
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </div>
 
@@ -1701,6 +1820,35 @@ export default function App() {
                       });
                     }} />
                   </div>
+
+                  {(() => {
+                    const doors = getNearbyDoors(selectedUnit);
+                    if (doors.length === 0) return null;
+                    return (
+                      <div className="relative col-span-2">
+                        <button
+                          onClick={() => handleToggleDoor(doors[0])}
+                          disabled={!selectedUnit.actions.intervention}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <DoorOpen size={16} /> Interagir com Porta {mapCoverConfig[doors[0]] === "doorOpen" ? "(Fechar)" : "(Abrir)"}
+                        </button>
+                        <Info size={12} className="absolute top-1 right-1.5 cursor-pointer text-neutral-500 hover:text-white z-10" onClick={(e) => {
+                          e.stopPropagation();
+                          setModalData({
+                            title: "Porta",
+                            content: [
+                              "Custo: 1 ação de Intervenção (I).",
+                              "Permite abrir ou fechar uma porta adjacente.",
+                              "Portas fechadas bloqueiam movimento e visão totalmente.",
+                              "Portas abertas permitem livre passagem e visão.",
+                            ],
+                          });
+                        }} />
+                      </div>
+                    );
+                  })()}
+
                   <div className="relative col-span-2">
                     <button
                       onClick={() => { setFacingMode(facingMode === "facing" ? null : "facing"); setTargetMode(null); }}

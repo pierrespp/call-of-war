@@ -34,7 +34,8 @@ export function computeReachable(
   gridWidth: number,
   gridHeight: number,
   cover: Record<string, CoverType | string>,
-  occupied: Set<string>, // cellKey of other units
+  enemyOccupied: Set<string>, // units that block traversal (enemies)
+  allyOccupied: Set<string>, // units that allow traversal but block landing
   movementBudgetMeters: number,
 ): Map<string, ReachableCell> {
   const result = new Map<string, ReachableCell>();
@@ -62,8 +63,11 @@ export function computeReachable(
       if (n.gx < 0 || n.gy < 0 || n.gx >= gridWidth || n.gy >= gridHeight) continue;
       const nKey = `${n.gx},${n.gy}`;
       const nCover = cover[nKey] as CoverType | undefined;
+      
+      // Enemies and solid cover block traversal.
       if (isBlocking(nCover)) continue;
-      if (occupied.has(nKey)) continue;
+      if (enemyOccupied.has(nKey)) continue;
+
       const stepCost = cellCostMeters(nCover);
       const newCost = cur.cost + stepCost;
       if (newCost > movementBudgetMeters + 1e-6) continue;
@@ -120,7 +124,8 @@ export function validatePath(
   gridWidth: number,
   gridHeight: number,
   cover: Record<string, CoverType | string>,
-  occupied: Set<string>, // cells occupied by *other* units
+  enemyOccupied: Set<string>, // cells occupied by enemies (block traversal)
+  allyOccupied: Set<string>,  // cells occupied by allies (allow traversal, block landing)
 ): { ok: boolean; error?: string } {
   if (!path.length) return { ok: false, error: "Caminho vazio" };
   for (let i = 0; i < path.length; i++) {
@@ -137,8 +142,15 @@ export function validatePath(
         : "um obstáculo";
       return { ok: false, error: `Caminho atravessa ${label}` };
     }
-    if (i > 0 && occupied.has(k))
-      return { ok: false, error: "Caminho atravessa outra unidade" };
+    
+    // Enemy units block traversal.
+    if (i > 0 && enemyOccupied.has(k))
+      return { ok: false, error: "Caminho atravessa unidade inimiga" };
+
+    // landing on ANY occupied cell is forbidden.
+    if (i === path.length - 1 && i > 0 && (enemyOccupied.has(k) || allyOccupied.has(k)))
+      return { ok: false, error: "Destino ocupado" };
+
     if (i > 0) {
       const prev = path[i - 1];
       const dx = Math.abs(c.gx - prev.gx);

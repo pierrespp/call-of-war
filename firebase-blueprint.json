@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "Room": {
+      "title": "Room",
+      "description": "A game room session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "gameState": { "type": "object" },
+        "currentTurn": { "type": "string" },
+        "phase": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "gameState", "phase"]
+    },
+    "AIMapRecord": {
+      "title": "AI Map Record",
+      "description": "Metadata for a saved AI generated map",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "imagePath": { "type": "string" },
+        "coverData": { "type": "object" },
+        "gridWidth": { "type": "number" },
+        "gridHeight": { "type": "number" },
+        "createdAt": { "type": "number" }
+      }
+    },
+    "AIMapDraft": {
+      "title": "AI Map Draft",
+      "description": "Draft for map generation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "gridWidth": { "type": "number" },
+        "gridHeight": { "type": "number" },
+        "coverData": { "type": "object" },
+        "userPrompt": { "type": "string" },
+        "updatedAt": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Game sessions"
+    },
+    "ai-maps/{mapId}": {
+      "schema": "AIMapRecord",
+      "description": "Published AI maps"
+    },
+    "ai-map-drafts/{draftId}": {
+      "schema": "AIMapDraft",
+      "description": "Map design drafts"
+    },
+    "map-covers/{mapId}": {
+      "schema": "object",
+      "description": "Grid cover information"
+    },
+    "map-grid-settings/{mapId}": {
+      "schema": "object",
+      "description": "Grid display preferences"
+    }
+  }
+}

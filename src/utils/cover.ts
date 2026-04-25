@@ -84,7 +84,7 @@ export function computeShotCover(
     if (!isAttackerCell && !isTargetCell) {
       const key = `${x},${y}`;
       const c = cover[key] as CoverType | undefined;
-      if (c === "wall") {
+      if (c === "wall" || c === "doorClose") {
         result.hasWall = true;
         return result;
       }
@@ -98,7 +98,7 @@ export function computeShotCover(
 
   for (const { x: cx, y: cy, key } of lineCells) {
     const c = cover[key] as CoverType | undefined;
-    if (c === "full" || c === "doorClose") {
+    if (c === "full") {
       result.contributingFullCells.push(key);
     } else if (c === "half" || c === "window") {
       const distTarget = Math.max(Math.abs(cx - tx), Math.abs(cy - ty));

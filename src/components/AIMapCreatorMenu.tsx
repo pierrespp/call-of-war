@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { compressBase64Image } from "../lib/utils";
 import { CELL_SIZE } from "../data/constants";
 import { CoverType, MapCoverData, AIMapGenerationResult } from "../types/game";
 import { buildMapGenerationPrompt } from "../data/geminiPrompts";
@@ -241,7 +242,15 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
     setGenerationStartTime(Date.now());
     setGenerationElapsedSeconds(0);
     try {
-      const legendImage = buildLegendImage(coverData, gridWidth, gridHeight);
+      let legendImage = buildLegendImage(coverData, gridWidth, gridHeight);
+      
+      // Compress legend image before generating to avoid 413
+      try {
+        legendImage = await compressBase64Image(legendImage, 1024, 0.7);
+      } catch (ce) {
+        console.warn("Falha ao comprimir legenda:", ce);
+      }
+
       const result = await aiMapService.generate({
         legendImage,
         userPrompt,
@@ -301,10 +310,19 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
     if (!generationResult || !saveMapName.trim()) return;
     setIsSaving(true);
     setSaveError(null);
+
+    let finalImage = generationResult.generatedImage;
+    // Compress generated image to avoid 413 error on /save
+    try {
+      finalImage = await compressBase64Image(finalImage, 2048, 0.8);
+    } catch (ce) {
+      console.warn("Falha ao comprimir mapa gerado:", ce);
+    }
+
     const request: AIMapSaveRequest = {
       name: saveMapName.trim(),
-      imageBase64: generationResult.generatedImage,
-      mimeType: generationResult.mimeType,
+      imageBase64: finalImage,
+      mimeType: "image/jpeg", // Converted to jpeg by compressor
       coverData: generationResult.detectedCover,
       gridWidth,
       gridHeight,
@@ -630,7 +648,8 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
           </div>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-full text-xs flex items-center justify-center gap-2 bg-indigo-900/50 hover:bg-indigo-800 text-indigo-300 font-bold py-2 rounded border border-indigo-700/50 transition-colors mt-2"
+            disabled={paintedCount === 0}
+            className="w-full text-xs flex items-center justify-center gap-2 bg-indigo-900/50 hover:bg-indigo-800 text-indigo-300 font-bold py-2 rounded border border-indigo-700/50 transition-colors mt-2 disabled:opacity-40"
           >
              Importar Mapa Gerado Externamente
           </button>

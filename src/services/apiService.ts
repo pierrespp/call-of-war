@@ -170,6 +170,11 @@ export const apiService = {
       method: "POST", body: JSON.stringify({ playerToken, sniperId, targetId }),
     });
   },
+  async toggleDoor(roomId: string, playerToken: string, unitId: string, cellKey: string) {
+    return request<{ success: boolean; gameState: GameState; mapCover: MapCoverData }>(`/rooms/${roomId}/toggle-door`, {
+      method: "POST", body: JSON.stringify({ playerToken, unitId, cellKey }),
+    });
+  },
   async getMapCover(roomId: string, mapId: string): Promise<MapCoverData> {
     try { return await request<MapCoverData>(`/rooms/${roomId}/maps/${mapId}/cover`); }
     catch { return {}; }
