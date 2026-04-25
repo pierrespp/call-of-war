@@ -52,8 +52,8 @@ O sistema possui acessórios e habilidades definidos em `src/data/constants.ts`,
 - [x] Etapa 1 — Atualizar constants.ts com campos numéricos e desativar Sexto Sentido
 - [x] Etapa 2 — Implementar bônus de acessórios no servidor (performShot)
 - [x] Etapa 3 — Implementar Disparo Compensado (servidor + cliente)
-- [ ] Etapa 4 — Criar mecânica de cura do Médico (servidor + interface)
-- [ ] Etapa 5 — Implementar Linha de Frente
+- [x] Etapa 4 — Criar mecânica de cura do Médico (servidor + interface)
+- [x] Etapa 5 — Implementar Linha de Frente
 - [ ] Etapa 6 — Implementar Emboscada
 - [ ] Etapa 7 — Corrigir tooltips de acessórios no draft e desabilitar Sexto Sentido na UI
 - [ ] Etapa 8 — Testes e validação end-to-end
@@ -202,5 +202,15 @@ O sistema possui acessórios e habilidades definidos em `src/data/constants.ts`,
 - Bônus permite que a distância excedida só comece a contar as penalidades a partir de `SCALE.ALCANCE_LONGO + 10`.
 - Atualizada verificação absoluta de range na Rota HTTP `/mark-target` para que a habilidade permita marcar alvos +10m mais distantes.
 - Atualizado o log de progresso.
+
+**Etapa 4 Concluída:**
+- Criada a rota `POST /api/rooms/:roomId/heal` no servidor que checa a classe do médico, alinhamento dos times, distância de 4.5m e faz a cura do alvo usando `actions.intervention`.
+- Adicionado cálculo da habilidade "Médico de Combate" que aumenta a cura de 2 HP para 4 HP.
+- Adicionado suporte a `healUnit` em `apiService.ts`.
+- Adicionado modo de interação `targetMode="heal"` em `App.tsx`, com estilização de círculos e botões do menu específicos para personagens Médico curarem seus aliados.
+
+**Etapa 5 Concluída:**
+- Atualizada a permissão de disparo na Rota `/api/rooms/:roomId/shoot` do `server.ts` para permitir atirar caso o a unidade possua a habilidade "Linha de Frente". Diferente das demais classes, agora o tiro não consome `actions.intervention` para o Atirador com esta habilidade.
+- A interface (`App.tsx`) no botão "Atirar" foi atualizada para aplicar dinamicamente o texto informativo sobre o não consumo de "Intervenção" e evitar bloquear o botão.
 
 *(Será preenchido conforme as etapas forem concluídas)*

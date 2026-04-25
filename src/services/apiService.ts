@@ -120,6 +120,12 @@ export const apiService = {
       body: JSON.stringify({ playerToken, attackerId, targetId, distancePenalty }),
     });
   },
+  async healUnit(roomId: string, playerToken: string, healerId: string, targetId: string) {
+    return request<{ success: boolean; gameState: GameState }>(`/rooms/${roomId}/heal`, {
+      method: "POST",
+      body: JSON.stringify({ playerToken, healerId, targetId }),
+    });
+  },
   async reloadUnit(roomId: string, playerToken: string, unitId: string) {
     return request<{ success: boolean; gameState: GameState }>(`/rooms/${roomId}/reload`, {
       method: "POST", body: JSON.stringify({ playerToken, unitId }),

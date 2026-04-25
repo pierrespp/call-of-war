@@ -46,7 +46,7 @@ export default function App() {
 
   // ── Battle UI State ───────────────────────────────────────────────────────
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
-  const [targetMode, setTargetMode] = useState<"move" | "shoot" | "mark" | null>(null);
+  const [targetMode, setTargetMode] = useState<"move" | "shoot" | "mark" | "heal" | null>(null);
   const [zoom, setZoom] = useState(0.4);
   const [camera, setCamera] = useState({ x: 1000, y: 1000 });
   const [isPanning, setIsPanning] = useState(false);
@@ -470,6 +470,24 @@ export default function App() {
 
   const handleUnitClick = async (e: React.MouseEvent, unit: Unit) => {
     e.stopPropagation();
+
+    if (targetMode === "heal" && selectedUnitId && gameState && roomId && appState.session?.token) {
+      if (unit.id === selectedUnitId) return;
+      const source = gameState.units[selectedUnitId];
+      if (source.team !== unit.team) {
+        alert("Você só pode curar aliados.");
+        return;
+      }
+      
+      try {
+        const res = await apiService.healUnit(roomId, appState.session.token, source.id, unit.id);
+        setGameState(res.gameState);
+        setTargetMode(null);
+      } catch (err: any) {
+        alert(err.message || "Erro ao curar alvo");
+      }
+      return;
+    }
 
     if (targetMode === "mark" && selectedUnitId && gameState && roomId && appState.session?.token) {
       if (unit.id === selectedUnitId) return;
@@ -1229,6 +1247,7 @@ export default function App() {
                   targetMode === "shoot" && isEnemy && fovState === "marked" && "animate-pulse ring-4 ring-amber-500 cursor-crosshair",
                   targetMode === "shoot" && isEnemy && (fovState === "out_of_cone" || fovState === "obstructed") && "ring-4 ring-red-500/50 opacity-60 cursor-not-allowed",
                   targetMode === "mark" && isEnemy && "animate-pulse ring-4 ring-amber-500 cursor-crosshair",
+                  targetMode === "heal" && !isEnemy && !isSelected && "animate-pulse ring-4 ring-green-400 cursor-crosshair",
                   isMyUnit && isMyTurn && !targetMode && "cursor-pointer hover:scale-105",
                   !isMyUnit && !targetMode && "cursor-default opacity-90",
                 )}
@@ -1278,6 +1297,10 @@ export default function App() {
                 {isSelected && targetMode === "shoot" && rangePx > 0 && (
                   <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-red-500/30 bg-red-500/5 pointer-events-none"
                     style={{ width: rangePx * 2, height: rangePx * 2 }} />
+                )}
+                {isSelected && targetMode === "heal" && (
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-green-400/40 bg-green-400/5 pointer-events-none"
+                    style={{ width: (4.5 / METERS_PER_CELL) * CELL_SIZE * 2, height: (4.5 / METERS_PER_CELL) * CELL_SIZE * 2 }} />
                 )}
                 {isSelected && targetMode === "move" && (
                   <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-green-500/50 bg-green-500/10 pointer-events-none"
@@ -1524,7 +1547,7 @@ export default function App() {
                   <div className="relative">
                     <button
                       onClick={() => { setTargetMode(targetMode === "shoot" ? null : "shoot"); setFacingMode(null); }}
-                      disabled={selectedUnit.ammoInMag <= 0 || (selectedUnit.shotsThisTurn === 0 && !selectedUnit.actions.intervention)}
+                      disabled={selectedUnit.ammoInMag <= 0 || (selectedUnit.shotsThisTurn === 0 && !selectedUnit.actions.intervention && !selectedUnit.skills?.includes("Linha de Frente"))}
                       className={cn("w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed", targetMode === "shoot" ? "bg-red-600 text-white" : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300")}
                     >
                       <Crosshair size={16} /> Atirar
@@ -1534,7 +1557,7 @@ export default function App() {
                       setModalData({
                         title: "Atirar",
                         content: [
-                          "Custo: o primeiro disparo do turno consome 1 Intervenção (I).",
+                          selectedUnit.skills?.includes("Linha de Frente") ? "Custo: habilidade Linha de Frente permite atirar sem consumir Intervenção." : "Custo: o primeiro disparo do turno consome 1 Intervenção (I).",
                           "Disparos adicionais respeitam o limite de tiros por turno da arma e consomem apenas munição.",
                           "Cálculo de acerto: d100 vs (precisão da classe − penalidade de distância − cobertura − modificadores de postura).",
                           "Em caso de acerto, segunda rolagem d100 verifica crítico (com bônus de Sniper, Objetiva, bipé+prone, etc.).",
@@ -1562,6 +1585,29 @@ export default function App() {
                       });
                     }} />
                   </div>
+                  
+                  {selectedUnit.className.includes("Médico") && (
+                    <div className="relative">
+                      <button
+                        onClick={() => { setTargetMode(targetMode === "heal" ? null : "heal"); setFacingMode(null); }}
+                        disabled={!selectedUnit.actions.intervention}
+                        className={cn("w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed", targetMode === "heal" ? "bg-green-600 text-white" : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300")}
+                      >
+                        <Heart size={16} /> Curar
+                      </button>
+                      <Info size={12} className="absolute top-1 right-1.5 cursor-pointer text-neutral-500 hover:text-white z-10" onClick={(e) => {
+                        e.stopPropagation();
+                        setModalData({
+                          title: "Curar",
+                          content: [
+                            "Custo: 1 ação de Intervenção (I).",
+                            "Cura um aliado dentro do alcance (3 células de distância).",
+                            selectedUnit.skills?.includes("Médico de Combate") ? "Você tem a habilidade Médico de Combate, curando 4 HP por uso." : "Cura base: 2 HP.",
+                          ],
+                        });
+                      }} />
+                    </div>
+                  )}
                   
                   {selectedUnit.className === "Sniper" && selectedUnit.attachments?.includes("Objetiva") && (
                     <div className="relative">
@@ -1674,6 +1720,7 @@ export default function App() {
               {targetMode === "move" && <div className="text-xs text-center text-green-400 mt-2 animate-pulse">Selecione um ponto no mapa para mover.</div>}
               {targetMode === "shoot" && <div className="text-xs text-center text-red-400 mt-2 animate-pulse">Selecione um inimigo para atirar.</div>}
               {targetMode === "mark" && <div className="text-xs text-center text-amber-400 mt-2 animate-pulse">Selecione um inimigo visível para marcar.</div>}
+              {targetMode === "heal" && <div className="text-xs text-center text-green-400 mt-2 animate-pulse">Selecione um aliado dentro do alcance para curar.</div>}
               {facingMode === "guard" && <div className="text-xs text-center text-amber-400 mt-2 animate-pulse">Clique no mapa para escolher o ângulo de vigilância.</div>}
               {facingMode === "facing" && <div className="text-xs text-center text-cyan-400 mt-2 animate-pulse">Clique no mapa para escolher o novo ângulo.</div>}
             </div>

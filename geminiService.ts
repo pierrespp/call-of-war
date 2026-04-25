@@ -51,7 +51,7 @@ export class GeminiRateLimitError extends Error {
 export class GeminiConfigurationError extends Error {
   constructor() {
     super(
-      "GOOGLE_GENAI_API_KEY não configurada no servidor. Adicione-a aos Secrets do App.",
+      "GEMINI_API_KEY não configurada no servidor. Adicione-a aos Secrets do App.",
     );
     this.name = "GeminiConfigurationError";
   }
@@ -61,7 +61,7 @@ let cachedClient: GoogleGenAI | null = null;
 
 function getClient(): GoogleGenAI {
   if (cachedClient) return cachedClient;
-  const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey.trim().length === 0) {
     throw new GeminiConfigurationError();
   }
@@ -70,7 +70,7 @@ function getClient(): GoogleGenAI {
 }
 
 export function isGeminiConfigured(): boolean {
-  return Boolean(process.env.GOOGLE_GENAI_API_KEY?.trim());
+  return Boolean(process.env.GEMINI_API_KEY?.trim());
 }
 
 function reserveSlotOrThrow(): void {

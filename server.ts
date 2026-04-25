@@ -1000,7 +1000,7 @@ async function startServer() {
     if (!weapon) return res.status(400).json({ error: "Atirador sem arma" });
     if (attacker.ammoInMag <= 0) return res.status(400).json({ error: "Sem munição no carregador. Recarregue antes de atirar." });
     if (attacker.shotsThisTurn >= weapon.shots) return res.status(400).json({ error: `Limite de ${weapon.shots} disparo(s) por turno atingido.` });
-    if (attacker.shotsThisTurn === 0 && !attacker.actions.intervention) return res.status(400).json({ error: "Sem Ação de Intervenção disponível neste turno." });
+    if (attacker.shotsThisTurn === 0 && !attacker.actions.intervention && !attacker.skills?.includes("Linha de Frente")) return res.status(400).json({ error: "Sem Ação de Intervenção disponível neste turno." });
 
     if (!isInFOV(attacker, target, room)) {
       return res.status(400).json({ error: "O alvo está fora do seu campo de visão (FOV)." });
@@ -1011,7 +1011,7 @@ async function startServer() {
     const coverInfo = computeShotCover(attacker.x, attacker.y, target.x, target.y, mapCover);
     if (coverInfo.hasWall) return res.status(400).json({ error: "Há paredes bloqueando o caminho!" });
 
-    if (attacker.shotsThisTurn === 0) attacker.actions.intervention = false;
+    if (attacker.shotsThisTurn === 0 && !attacker.skills?.includes("Linha de Frente")) attacker.actions.intervention = false;
     attacker.shotsThisTurn += 1;
     attacker.ammoInMag -= 1;
     const r = performShot(room, attacker, target, coverInfo.cover, distancePenalty);
@@ -1058,6 +1058,51 @@ async function startServer() {
     sniper.markedTargetExpiresAtTurn = room.gameState.turnNumber + 4; // Turno do Sniper -> Turno Inimigo -> Turno Sniper (pode atirar) -> Turno Inimigo (limpa antes de começar)
 
     pushLog(room, `🎯 ${sniper.name} marcou ${target.name} como alvo. (A marcação dura 1 turno)`);
+    res.json({ success: true, gameState: room.gameState });
+  });
+
+  // ── Heal ─────────────────────────────────────────────────────────────────
+  app.post("/api/rooms/:roomId/heal", (req, res) => {
+    const { roomId } = req.params;
+    const { healerId, targetId, playerToken } = req.body;
+    const room = rooms[roomId];
+    
+    if (!room) return res.status(404).json({ error: "Sala não encontrada" });
+    const v = validateTurn(room, playerToken);
+    if (v.error) return res.status(v.status!).json({ error: v.error });
+    
+    const healer = room.gameState.units[healerId];
+    const target = room.gameState.units[targetId];
+    
+    if (!healer || !target) return res.status(404).json({ error: "Unidade não encontrada" });
+    if (healer.team !== room.currentTurn) return res.status(403).json({ error: "Esta unidade não é sua" });
+    if (!healer.actions.intervention) return res.status(400).json({ error: "Sem Ação de Intervenção disponível." });
+    if (!healer.className.includes("Médico")) return res.status(400).json({ error: "Apenas unidades da classe Médico podem curar." });
+    if (healer.team !== target.team) return res.status(403).json({ error: "Só é possível curar aliados." });
+    
+    // Check distance (max 3 cells: ~4.5m)
+    const distMeters = distanceMeters(healer.x, healer.y, target.x, target.y);
+    const maxHealDist = 4.5;
+    if (distMeters > maxHealDist) {
+      return res.status(400).json({ error: `Alvo muito distante para curar (${distMeters.toFixed(1)}m > ${maxHealDist}m).` });
+    }
+
+    // Determine heal amount
+    let healAmount = 2;
+    if (healer.skills?.includes("Médico de Combate")) healAmount = 4;
+    
+    const classData = CLASSES[target.className];
+    const maxHp = classData ? classData.hp : target.hp;
+    
+    if (target.hp >= maxHp) {
+      return res.status(400).json({ error: "O alvo já está com HP máximo." });
+    }
+    
+    const actualHeal = Math.min(healAmount, maxHp - target.hp);
+    target.hp += actualHeal;
+    healer.actions.intervention = false;
+    
+    pushLog(room, `💉 ${healer.name} curou ${target.name} em ${actualHeal} HP.`);
     res.json({ success: true, gameState: room.gameState });
   });
 
