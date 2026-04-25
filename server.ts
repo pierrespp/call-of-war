@@ -4,7 +4,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 import fs from "fs";
-import pg from "pg";
 
 import { CLASSES, WEAPONS, ARMORS, ATTACHMENTS, SKILLS, MAPS, CELL_SIZE, METERS_PER_CELL, SCALE, MapGridSettings, DEFAULT_GRID_SETTINGS } from "./src/data/constants.js";
 import { GameState, Unit, PendingGuardShot, DraftUnit, RoomPhase, DraftState, DeployState, CoverType } from "./src/types/game.js";
@@ -18,101 +17,67 @@ import {
   GeminiConfigurationError,
 } from "./geminiService.js";
 import { geminiRateLimiter } from "./geminiRateLimiter.js";
+import { promises as fsp, existsSync, mkdirSync } from "fs";
+import { db } from "./src/lib/firebase-server.js";
+import { collection, doc, getDoc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const DATA_DIR = path.join(__dirname, "data");
+const MAPS_IMG_DIR = path.join(DATA_DIR, "maps");
+
+if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+if (!existsSync(MAPS_IMG_DIR)) mkdirSync(MAPS_IMG_DIR, { recursive: true });
+
 // ── Persistent storage for global map cover data (Map Editor) ───────────────
-const { Pool } = pg;
-const pgPool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL }) : null;
-
-async function ensureCoverTable() {
-  if (!pgPool) return;
-  await pgPool.query(`
-    CREATE TABLE IF NOT EXISTS map_covers (
-      map_id TEXT PRIMARY KEY,
-      data   JSONB NOT NULL,
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-}
-
 async function loadGlobalCoverData(): Promise<Record<string, Record<string, string>>> {
-  if (!pgPool) {
-    console.warn("⚠️ DATABASE_URL ausente — coberturas do editor não serão persistidas.");
-    return {};
-  }
   try {
-    await ensureCoverTable();
-    const { rows } = await pgPool.query<{ map_id: string; data: Record<string, string> }>(
-      "SELECT map_id, data FROM map_covers"
-    );
+    const mapsRef = collection(db, "maps");
+    const snapshot = await getDocs(mapsRef);
     const out: Record<string, Record<string, string>> = {};
-    for (const r of rows) out[r.map_id] = r.data || {};
+    for (const d of snapshot.docs) {
+      const data = d.data();
+      if (data.coverData) out[d.id] = data.coverData;
+    }
     return out;
   } catch (err) {
-    console.error("⚠️ Falha ao ler coberturas do banco:", err);
+    console.error("⚠️ Falha ao ler coberturas do Firestore:", err);
     return {};
   }
 }
 
-async function saveMapCover(mapId: string, data: Record<string, string>) {
-  if (!pgPool) return;
+async function saveMapCover(mapId: string, coverData: Record<string, string>) {
   try {
-    await pgPool.query(
-      `INSERT INTO map_covers (map_id, data, updated_at)
-       VALUES ($1, $2::jsonb, NOW())
-       ON CONFLICT (map_id) DO UPDATE
-         SET data = EXCLUDED.data, updated_at = NOW()`,
-      [mapId, JSON.stringify(data)]
-    );
+    const mapRef = doc(db, "maps", mapId);
+    await setDoc(mapRef, { coverData, updatedAt: Date.now() }, { merge: true });
   } catch (err) {
-    console.error(`⚠️ Falha ao salvar cobertura do mapa ${mapId}:`, err);
+    console.error(`⚠️ Falha ao salvar cobertura do mapa ${mapId} no Firestore:`, err);
   }
 }
 
 // ── Persistent storage for per-map grid display settings (Map Editor) ──────
-async function ensureGridSettingsTable() {
-  if (!pgPool) return;
-  await pgPool.query(`
-    CREATE TABLE IF NOT EXISTS map_grid_settings (
-      map_id TEXT PRIMARY KEY,
-      data   JSONB NOT NULL,
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-}
-
 async function loadGlobalGridSettings(): Promise<Record<string, MapGridSettings>> {
-  if (!pgPool) {
-    console.warn("⚠️ DATABASE_URL ausente — configurações de grid não serão persistidas.");
-    return {};
-  }
   try {
-    await ensureGridSettingsTable();
-    const { rows } = await pgPool.query<{ map_id: string; data: MapGridSettings }>(
-      "SELECT map_id, data FROM map_grid_settings"
-    );
+    const mapsRef = collection(db, "maps");
+    const snapshot = await getDocs(mapsRef);
     const out: Record<string, MapGridSettings> = {};
-    for (const r of rows) if (r.data) out[r.map_id] = r.data;
+    for (const d of snapshot.docs) {
+      const data = d.data();
+      if (data.gridSettings) out[d.id] = data.gridSettings;
+    }
     return out;
   } catch (err) {
-    console.error("⚠️ Falha ao ler configurações de grid do banco:", err);
+    console.error("⚠️ Falha ao ler configurações de grid do Firestore:", err);
     return {};
   }
 }
 
-async function saveMapGridSettings(mapId: string, data: MapGridSettings) {
-  if (!pgPool) return;
+async function saveMapGridSettings(mapId: string, gridSettings: MapGridSettings) {
   try {
-    await pgPool.query(
-      `INSERT INTO map_grid_settings (map_id, data, updated_at)
-       VALUES ($1, $2::jsonb, NOW())
-       ON CONFLICT (map_id) DO UPDATE
-         SET data = EXCLUDED.data, updated_at = NOW()`,
-      [mapId, JSON.stringify(data)]
-    );
+    const mapRef = doc(db, "maps", mapId);
+    await setDoc(mapRef, { gridSettings }, { merge: true });
   } catch (err) {
-    console.error(`⚠️ Falha ao salvar configurações de grid do mapa ${mapId}:`, err);
+    console.error(`⚠️ Falha ao salvar configurações de grid do mapa ${mapId} no Firestore:`, err);
   }
 }
 
@@ -367,7 +332,7 @@ function buildBattleUnits(room: Room): Record<string, Unit> {
   return out;
 }
 
-// ── AI Maps — persistent metadata (data/ai-maps.json) ───────────────────────
+// ── AI Maps — persistent metadata (Firestore) ───────────────────────
 
 interface AIMapRecord {
   id: string;
@@ -379,23 +344,29 @@ interface AIMapRecord {
   createdAt: number;
 }
 
-const AI_MAPS_FILE = path.join(__dirname, "data", "ai-maps.json");
-
-function loadAIMapRecords(): AIMapRecord[] {
+async function loadAIMapRecords(): Promise<AIMapRecord[]> {
   try {
-    const raw = fs.readFileSync(AI_MAPS_FILE, "utf-8");
-    return JSON.parse(raw) as AIMapRecord[];
-  } catch {
+    const mapsRef = collection(db, "maps");
+    const snapshot = await getDocs(mapsRef);
+    const records: AIMapRecord[] = [];
+    for (const d of snapshot.docs) {
+      const data = d.data();
+      if (data.imagePath) {
+        records.push({ id: d.id, ...data } as AIMapRecord);
+      }
+    }
+    return records;
+  } catch (err) {
+    console.error("⚠️ Falha ao ler registros de mapas IA do Firestore:", err);
     return [];
   }
 }
 
-function persistAIMapRecords(maps: AIMapRecord[]): void {
+async function persistAIMapRecord(map: AIMapRecord): Promise<void> {
   try {
-    fs.mkdirSync(path.dirname(AI_MAPS_FILE), { recursive: true });
-    fs.writeFileSync(AI_MAPS_FILE, JSON.stringify(maps, null, 2), "utf-8");
+    await setDoc(doc(db, "maps", map.id), map, { merge: true });
   } catch (err) {
-    console.error("⚠️ Falha ao persistir ai-maps.json:", err);
+    console.error("⚠️ Falha ao persistir mapa IA no Firestore:", err);
   }
 }
 
@@ -409,54 +380,56 @@ interface AIMapDraft {
   updatedAt: number;
 }
 
-const AI_MAPS_DRAFTS_FILE = path.join(__dirname, "data", "ai-maps-drafts.json");
-
-function loadAIMapDrafts(): AIMapDraft[] {
+async function loadAIMapDrafts(): Promise<AIMapDraft[]> {
   try {
-    const raw = fs.readFileSync(AI_MAPS_DRAFTS_FILE, "utf-8");
-    return JSON.parse(raw) as AIMapDraft[];
-  } catch {
+    const draftsRef = collection(db, "map_drafts");
+    const snapshot = await getDocs(draftsRef);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AIMapDraft));
+  } catch (err) {
+    console.error("⚠️ Falha ao ler rascunhos de mapas IA do Firestore:", err);
     return [];
   }
 }
 
-function persistAIMapDrafts(drafts: AIMapDraft[]): void {
+async function persistAIMapDraft(draft: AIMapDraft): Promise<void> {
   try {
-    fs.mkdirSync(path.dirname(AI_MAPS_DRAFTS_FILE), { recursive: true });
-    fs.writeFileSync(AI_MAPS_DRAFTS_FILE, JSON.stringify(drafts, null, 2), "utf-8");
+    await setDoc(doc(db, "map_drafts", draft.id), draft, { merge: true });
   } catch (err) {
-    console.error("⚠️ Falha ao persistir ai-maps-drafts.json:", err);
+    console.error("⚠️ Falha ao persistir rascunho de mapa IA no Firestore:", err);
   }
 }
 
-/** Upload a base64 image buffer locally.
- *  Returns the local API URL to fetch the image. */
-async function uploadToFirebaseStorage(
+/** Save a base64 image buffer locally.
+ *  Returns the local URL path. */
+async function saveImageLocally(
   imageBase64: string,
-  mimeType: string,
   fileName: string,
 ): Promise<string> {
   const buffer = Buffer.from(imageBase64, "base64");
-  const targetDir = path.join(__dirname, "data", "maps");
-  fs.mkdirSync(targetDir, { recursive: true });
-  fs.writeFileSync(path.join(targetDir, fileName), buffer);
-  return `/api/maps/img/${fileName}`;
+  const filePath = path.join(MAPS_IMG_DIR, fileName);
+  await fsp.writeFile(filePath, buffer);
+  return `/api/maps/img/${encodeURIComponent(fileName)}`;
 }
 
 /** Delete a file from local storage */
-async function deleteFromFirebaseStorage(imageUrl: string): Promise<void> {
-  if (!imageUrl.startsWith('/api/maps/img/')) return;
-  const fileName = imageUrl.replace('/api/maps/img/', '');
-  const targetPath = path.join(__dirname, "data", "maps", decodeURIComponent(fileName));
-  if (fs.existsSync(targetPath)) {
-    fs.unlinkSync(targetPath);
+async function deleteImageLocally(imageUrl: string): Promise<void> {
+  try {
+    if (imageUrl.startsWith("/api/maps/img/")) {
+      const fileName = decodeURIComponent(imageUrl.replace("/api/maps/img/", ""));
+      const filePath = path.join(MAPS_IMG_DIR, fileName);
+      if (existsSync(filePath)) {
+        await fsp.unlink(filePath);
+      }
+    }
+  } catch (err) {
+    console.error("⚠️ Falha ao excluir imagem local:", err);
   }
 }
 
 // Populate MAPS with AI-generated maps on startup so they're immediately usable.
-(function loadAIMapsIntoRuntime() {
-  const maps = loadAIMapRecords();
-  for (const m of maps) {
+async function syncMapsLocally() {
+  const localMaps = await loadAIMapRecords();
+  for (const m of localMaps) {
     MAPS[m.id] = {
       id: m.id,
       name: m.name,
@@ -465,12 +438,15 @@ async function deleteFromFirebaseStorage(imageUrl: string): Promise<void> {
       gridHeight: m.gridHeight,
     };
   }
-  if (maps.length > 0) {
-    console.log(`🗺️ Mapas IA carregados: ${maps.length} mapa(s).`);
+  if (localMaps.length > 0) {
+    console.log(`🗺️ Mapas IA sincronizados com DB local: ${localMaps.length} mapa(s).`);
   }
-})();
+}
 
 async function startServer() {
+  // Sync maps once at startup
+  await syncMapsLocally();
+
   const app = express();
   const PORT = 3000;
   // 12 MB lets the AI Map Generator POST a 2500×2500 PNG legend without errors.
@@ -1317,27 +1293,28 @@ async function startServer() {
     res.json({ success: true });
   });
   app.delete("/api/maps/:mapId/grid-settings", async (req, res) => {
-    delete globalGridSettings[req.params.mapId];
-    if (pgPool) {
-      try { await pgPool.query("DELETE FROM map_grid_settings WHERE map_id = $1", [req.params.mapId]); }
-      catch (err) { console.error(`⚠️ Falha ao remover configurações de grid do mapa ${req.params.mapId}:`, err); }
+    const { mapId } = req.params;
+    delete globalGridSettings[mapId];
+    try {
+      const mapRef = doc(db, "maps", mapId);
+      await setDoc(mapRef, { gridSettings: null }, { merge: true });
+    } catch (err) {
+      console.error(`⚠️ Falha ao remover configurações de grid do mapa ${mapId} da DB local:`, err);
     }
     res.json({ success: true });
   });
 
   // ── AI Map Drafts ────────────────────────────────────────────────────────
-  app.get("/api/ai-maps/drafts", (req, res) => {
-    res.json(loadAIMapDrafts().sort((a, b) => b.updatedAt - a.updatedAt));
+  app.get("/api/ai-maps/drafts", async (req, res) => {
+    const drafts = await loadAIMapDrafts();
+    res.json(drafts.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)));
   });
 
-  app.post("/api/ai-maps/drafts", (req, res) => {
+  app.post("/api/ai-maps/drafts", async (req, res) => {
     const { id, name, gridWidth, gridHeight, coverData, userPrompt } = req.body as AIMapDraft;
     if (!name || !gridWidth || !gridHeight || !coverData) {
       return res.status(400).json({ error: "Dados incompletos para rascunho." });
     }
-    
-    const drafts = loadAIMapDrafts();
-    const existingIdx = drafts.findIndex((d) => d.id === id);
     
     const draft: AIMapDraft = {
       id: id || `draft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -1349,31 +1326,25 @@ async function startServer() {
       updatedAt: Date.now(),
     };
 
-    if (existingIdx >= 0) {
-      drafts[existingIdx] = draft;
-    } else {
-      drafts.push(draft);
-    }
-    persistAIMapDrafts(drafts);
+    await persistAIMapDraft(draft);
     res.json(draft);
   });
 
-  app.delete("/api/ai-maps/drafts/:draftId", (req, res) => {
+  app.delete("/api/ai-maps/drafts/:draftId", async (req, res) => {
     const { draftId } = req.params;
-    const drafts = loadAIMapDrafts();
-    const idx = drafts.findIndex((d) => d.id === draftId);
-    if (idx !== -1) {
-      drafts.splice(idx, 1);
-      persistAIMapDrafts(drafts);
+    try {
+      await deleteDoc(doc(db, "map_drafts", draftId));
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Erro ao excluir rascunho." });
     }
-    res.json({ success: true });
   });
 
   // ── AI Maps — save / list / delete ──────────────────────────────────────
 
   /** List all AI-generated maps (metadata only, no image data). */
-  app.get("/api/ai-maps/list", (_req, res) => {
-    const maps = loadAIMapRecords();
+  app.get("/api/ai-maps/list", async (_req, res) => {
+    const maps = await loadAIMapRecords();
     res.json(maps.map(({ id, name, imagePath, gridWidth, gridHeight, createdAt }) => ({
       id, name, imagePath, gridWidth, gridHeight, createdAt,
     })));
@@ -1381,7 +1352,7 @@ async function startServer() {
 
   /**
    * Save a generated map: upload the image to Firebase Storage, persist
-   * the metadata to data/ai-maps.json, and register the map in the runtime
+   * the metadata to Firestore, and register the map in the runtime
    * MAPS table so it's immediately available for match creation.
    */
   app.post("/api/ai-maps/save", async (req, res) => {
@@ -1413,7 +1384,7 @@ async function startServer() {
       return res.status(400).json({ error: "Nome inválido após sanitização." });
     }
 
-    const existing = loadAIMapRecords();
+    const existing = await loadAIMapRecords();
     if (existing.some((m) => m.name.toLowerCase() === sanitizedName.toLowerCase())) {
       return res.status(409).json({ error: "Já existe um mapa com esse nome." });
     }
@@ -1424,9 +1395,8 @@ async function startServer() {
     const fileName = `${Date.now()}_${safeName}.${ext}`;
 
     try {
-      const imagePath = await uploadToFirebaseStorage(
+      const imagePath = await saveImageLocally(
         imageBase64,
-        mimeType || "image/jpeg",
         fileName,
       );
 
@@ -1440,8 +1410,7 @@ async function startServer() {
         createdAt: Date.now(),
       };
 
-      existing.push(record);
-      persistAIMapRecords(existing);
+      await persistAIMapRecord(record);
 
       // Merge into runtime so the new map is available immediately
       MAPS[mapId] = {
@@ -1465,30 +1434,28 @@ async function startServer() {
     }
   });
 
-  /** Delete an AI-generated map: removes the image from Firebase and the metadata record. */
+  /** Delete an AI-generated map: removes the image and the metadata record. */
   app.delete("/api/ai-maps/:mapId", async (req, res) => {
     const { mapId } = req.params;
 
-    const maps = loadAIMapRecords();
-    const idx = maps.findIndex((m) => m.id === mapId);
-    if (idx === -1) {
+    const maps = await loadAIMapRecords();
+    const removed = maps.find((m) => m.id === mapId);
+    if (!removed) {
       return res.status(404).json({ error: "Mapa IA não encontrado." });
     }
 
-    const [removed] = maps.splice(idx, 1);
-    persistAIMapRecords(maps);
+    try {
+      await deleteDoc(doc(db, "maps", mapId));
+    } catch(err) {
+      console.error(err);
+    }
 
     // Remove from runtime
     delete MAPS[mapId];
     delete globalCoverData[mapId];
-    if (pgPool) {
-      pgPool
-        .query("DELETE FROM map_covers WHERE map_id = $1", [mapId])
-        .catch((e) => console.warn("⚠️ Falha ao limpar cobertura do banco para mapa IA:", e));
-    }
 
-    // Remove image from Firebase Storage — best-effort
-    deleteFromFirebaseStorage(removed.imagePath).catch(() => {});
+    // Remove image from local Storage — best-effort
+    deleteImageLocally(removed.imagePath).catch(() => {});
 
     console.log(`🗑️ Mapa IA removido: "${removed.name}" (${mapId})`);
     res.json({ success: true });

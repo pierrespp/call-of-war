@@ -6,7 +6,7 @@ import { storageService } from '../services/storageService';
 const ROLE_IMAGES = [
   'assalto',
   'granadeiro',
-  'médico',
+  'medico',
   'sniper',
   'suporte'
 ];

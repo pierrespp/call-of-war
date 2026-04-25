@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { GameState, Unit, MapCoverData, CoverType, PendingGuardShot } from "./types/game";
-import { SCALE, CELL_SIZE, METERS_PER_CELL, ARMORS, WEAPONS, SKILLS, ATTACHMENTS, MAPS, CLASSES } from "./data/constants";
+import { SCALE, CELL_SIZE, METERS_PER_CELL, ARMORS, WEAPONS, SKILLS, ATTACHMENTS, CLASSES } from "./data/constants";
 import { cn } from "./lib/utils";
 // ... 
 import { getImageUrl } from "./lib/utils";
 import { useImages } from "./contexts/ImageContext";
+import { useMaps } from "./contexts/MapContext";
 import { Crosshair, Move, Shield, Heart, Activity, Info, X, Map as MapIcon, Copy, Check, LogOut, Users, UserPlus, RotateCcw, Zap, Eye, ChevronsDown } from "lucide-react";
 import { SoldiersInfoMenu } from "./components/SoldiersInfoMenu";
 import { CreateMatchMenu } from "./components/CreateMatchMenu";
@@ -20,6 +21,7 @@ type AppState = "login" | "lobby" | "createMatch" | "deploy" | "waiting" | "batt
 
 export default function App() {
   const { getMapImage, getRoleImage } = useImages();
+  const { maps } = useMaps();
   // ── Auth / Session ────────────────────────────────────────────────────────
   const [appState, setAppState] = useState<AppState>("login");
   const [playerName, setPlayerName] = useState("");
@@ -397,7 +399,7 @@ export default function App() {
     if (targetMode !== "move" || !selectedUnitId || !gameState) return;
     const unit = gameState.units[selectedUnitId];
     if (!unit) return;
-    const mapInfo = MAPS[gameState.mapId];
+    const mapInfo = maps[gameState.mapId];
     if (!mapInfo) return;
     const armorPenal = unit.armorName ? (ARMORS[unit.armorName]?.movePenal || 0) : 0;
     const classInfo = CLASSES[unit.className];
@@ -1077,16 +1079,16 @@ export default function App() {
             left: "50%", top: "50%",
             transformOrigin: "0 0",
             transform: `scale(${zoom}) translate(${-camera.x}px, ${-camera.y}px)`,
-            width: MAPS[gameState.mapId] ? MAPS[gameState.mapId].gridWidth * CELL_SIZE : 4000,
-            height: MAPS[gameState.mapId] ? MAPS[gameState.mapId].gridHeight * CELL_SIZE : 4000,
+            width: maps[gameState.mapId] ? maps[gameState.mapId].gridWidth * CELL_SIZE : 4000,
+            height: maps[gameState.mapId] ? maps[gameState.mapId].gridHeight * CELL_SIZE : 4000,
             backgroundColor: "#1a1a1a",
           }}
         >
           {/* Map image using img tag for better rendering */}
-          {MAPS[gameState.mapId] && (
+          {maps[gameState.mapId] && (
             <img
-              src={getMapImage(gameState.mapId)}
-              alt={`Map ${MAPS[gameState.mapId].name}`}
+              src={getImageUrl(maps[gameState.mapId].imagePath)}
+              alt={`Map ${maps[gameState.mapId].name}`}
               className="absolute inset-0 w-full h-full object-cover pointer-events-none"
             />
           )}

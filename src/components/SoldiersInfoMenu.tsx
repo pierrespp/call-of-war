@@ -27,7 +27,7 @@ export function SoldiersInfoMenu({ onBack }: { onBack: () => void }) {
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Object.values(CLASSES).filter(c => c.faction === faction).map(c => (
                     <div key={c.id} className="bg-neutral-800 border border-neutral-700 p-4 rounded-xl flex gap-4">
-                      <div className="w-16 h-16 bg-neutral-900 rounded-lg flex items-center justify-center shrink-0 border border-neutral-700 bg-cover bg-center" style={{ backgroundImage: `url("${getImageUrl('/roles/' + c.name.toLowerCase() + '.png')}")` }}>
+                      <div className="w-16 h-16 bg-neutral-900 rounded-lg flex items-center justify-center shrink-0 border border-neutral-700 bg-cover bg-center" style={{ backgroundImage: `url("${getImageUrl('/roles/' + c.name.toLowerCase().replace('médico', 'medico') + '.png')}")` }}>
                          {!['assalto', 'suporte', 'médico', 'granadeiro', 'sniper'].includes(c.name.toLowerCase()) && (
                             <span className="font-bold text-neutral-600 text-xl">{c.name.substring(0, 2).toUpperCase()}</span>
                          )}

@@ -630,8 +630,7 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
           </div>
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={paintedCount === 0}
-            className="w-full text-xs flex items-center justify-center gap-2 bg-indigo-900/50 hover:bg-indigo-800 text-indigo-300 font-bold py-2 rounded border border-indigo-700/50 transition-colors mt-2 disabled:opacity-40"
+            className="w-full text-xs flex items-center justify-center gap-2 bg-indigo-900/50 hover:bg-indigo-800 text-indigo-300 font-bold py-2 rounded border border-indigo-700/50 transition-colors mt-2"
           >
              Importar Mapa Gerado Externamente
           </button>

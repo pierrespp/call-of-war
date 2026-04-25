@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MAPS, CELL_SIZE, MapGridSettings, DEFAULT_GRID_SETTINGS } from "../data/constants";
+import { GameMap, CELL_SIZE, MapGridSettings, DEFAULT_GRID_SETTINGS } from "../data/constants";
+import { useMaps } from "../contexts/MapContext";
 import { CoverType, MapCoverData } from "../types/game";
 import { validateDeployZones } from "../utils/pathfinding";
 import { getImageUrl } from "../lib/utils";
@@ -34,6 +35,7 @@ type ToolMode = "draw" | "pan";
 
 export function MapEditorMenu({ onBack }: { onBack: () => void }) {
   const { getMapImage } = useImages();
+  const { maps } = useMaps();
   const [selectedMap, setSelectedMap] = useState("cidade_ruinas");
   const [coverData, setCoverData] = useState<MapCoverData>({});
   const [zoom, setZoom] = useState(0.4);
@@ -69,7 +71,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
       .catch(() => setGridSettings(DEFAULT_GRID_SETTINGS));
   }, [selectedMap]);
 
-  const mapInfo = MAPS[selectedMap];
+  const mapInfo = maps[selectedMap];
   const cellSize = gridSettings.cellSize;
   // Map keeps its canonical display size (independent of the grid slider).
   const mapW = mapInfo.gridWidth * CELL_SIZE;
@@ -187,7 +189,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
               value={selectedMap}
               onChange={(e) => { setSelectedMap(e.target.value); setCamera({ x: 0, y: 0 }); setValidationError(null); setSavedAt(null); }}
             >
-              {Object.values(MAPS).map(map => (
+              {Object.values(maps).map((map: GameMap) => (
                 <option key={map.id} value={map.id}>{map.name}</option>
               ))}
             </select>
@@ -357,7 +359,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
         >
           {/* Map image — fixed size, anchored top-left, doesn't scale with the grid slider. */}
           <img
-            src={getMapImage(selectedMap)}
+            src={getImageUrl(mapInfo.imagePath)}
             alt={`Map ${selectedMap}`}
             className="absolute pointer-events-none"
             style={{

@@ -24,7 +24,7 @@ export const useFirebaseImages = () => {
       const maps: ImageCache = {};
 
       tokens.forEach(token => {
-        const key = token.name.toLowerCase();
+        const key = token.name.toLowerCase().replace("médico", "medico");
         if (token.type === 'role') {
           roles[key] = token.imageUrl;
         } else if (token.type === 'map') {
@@ -46,7 +46,7 @@ export const useFirebaseImages = () => {
   };
 
   const getRoleImage = (roleName: string): string => {
-    const key = roleName.toLowerCase();
+    const key = roleName.toLowerCase().replace("médico", "medico");
     return roleImages[key] || getImageUrl(`/roles/${key}.png`);
   };
 

@@ -316,7 +316,7 @@ export function CreateMatchMenu({ roomId, playerToken, playerTeam, state, onBack
                     <div key={u.id} className="flex gap-4 items-center bg-black/20 p-3 rounded-lg border border-neutral-800">
                       <div
                         className="w-12 h-12 bg-neutral-800 rounded flex items-center justify-center text-xl font-black text-neutral-600 bg-cover bg-center shrink-0"
-                        style={{ backgroundImage: `url("${getImageUrl('/roles/' + CLASSES[u.className]?.name.toLowerCase() + '.png')}")` }}
+                        style={{ backgroundImage: `url("${getImageUrl('/roles/' + CLASSES[u.className]?.name.toLowerCase().replace('médico', 'medico') + '.png')}")` }}
                       >
                         {!["assalto","suporte","médico","granadeiro","sniper"].includes(CLASSES[u.className]?.name.toLowerCase()) &&
                           CLASSES[u.className]?.name.substring(0, 2).toUpperCase()}

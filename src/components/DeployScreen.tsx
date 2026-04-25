@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CELL_SIZE, MAPS, CLASSES } from "../data/constants";
+import { CELL_SIZE, CLASSES } from "../data/constants";
+import { useMaps } from "../contexts/MapContext";
 import { apiService, RoomStateResponse } from "../services/apiService";
 import { DeployZone, DraftUnit, MapCoverData } from "../types/game";
 import { Check, X, ArrowLeft } from "lucide-react";
@@ -15,9 +16,10 @@ interface Props {
 }
 
 export function DeployScreen({ roomId, playerToken, playerTeam, state, onLeave }: Props) {
-  const { getMapImage, getRoleImage } = useImages();
+  const { getMapImage } = useImages();
+  const { maps } = useMaps();
   const mapId = state.draft.selectedMap;
-  const mapInfo = MAPS[mapId];
+  const mapInfo = maps[mapId];
   const myDraft: DraftUnit[] = state.draft.teams[playerTeam] || [];
   const myReady = state.deploy.ready[playerTeam];
   const opponentTeam = playerTeam === "A" ? "B" : "A";
@@ -277,7 +279,7 @@ export function DeployScreen({ roomId, playerToken, playerTeam, state, onLeave }
         >
           {/* Map image using img tag for better rendering */}
           <img
-            src={getMapImage(mapId)}
+            src={getImageUrl(mapInfo.imagePath)}
             alt={`Map ${mapInfo.name}`}
             className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           />

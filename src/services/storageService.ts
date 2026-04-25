@@ -1,6 +1,5 @@
-import { storage, db } from '../lib/firebase';
-import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
-import { doc, setDoc, getDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { doc, setDoc, getDoc, updateDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 
 export interface TokenData {
   id: string;
@@ -12,52 +11,78 @@ export interface TokenData {
 }
 
 export const storageService = {
-  // Upload de imagem para o Firebase Storage
-  async uploadImage(file: File, path: string): Promise<string> {
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(storageRef);
-    return downloadURL;
+  // Converte arquivo para Base64 (comprimido para não estourar o limite de 1MB do Firestore)
+  fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const img = new Image();
+        img.src = reader.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxSize = 512; // Resolução segura para manter a imagem com < 200kb em base64
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height && width > maxSize) {
+            height *= maxSize / width;
+            width = maxSize;
+          } else if (height > maxSize) {
+            width *= maxSize / height;
+            height = maxSize;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+             ctx.drawImage(img, 0, 0, width, height);
+             // Usar WEBP ou JPEG para otimizar tamanho
+             resolve(canvas.toDataURL('image/jpeg', 0.8));
+          } else {
+             resolve(reader.result as string);
+          }
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = error => reject(error);
+    });
+  },
+
+  // Upload de imagem simulado (converte para base64)
+  async uploadImage(file: File, path?: string): Promise<string> {
+    return await this.fileToBase64(file);
   },
 
   // Upload de imagem de role/classe
   async uploadRoleImage(file: File, roleName: string): Promise<string> {
-    const path = `roles/${roleName.toLowerCase()}.png`;
-    return await this.uploadImage(file, path);
+    return await this.uploadImage(file);
   },
 
   // Upload de imagem de mapa
   async uploadMapImage(file: File, mapName: string): Promise<string> {
-    const path = `maps/${mapName.toLowerCase()}.png`;
-    return await this.uploadImage(file, path);
+    return await this.uploadImage(file);
   },
 
   // Upload de token customizado
   async uploadCustomToken(file: File, tokenId: string): Promise<string> {
-    const path = `tokens/${tokenId}`;
-    return await this.uploadImage(file, path);
+    return await this.uploadImage(file);
   },
 
-  // Deletar imagem do Storage
+  // Deletar imagem (No-op já que não estamos mais usando o Storage real)
   async deleteImage(path: string): Promise<void> {
-    const storageRef = ref(storage, path);
-    await deleteObject(storageRef);
+    return Promise.resolve();
   },
 
-  // Obter URL de download de uma imagem
+  // Obter URL de download de uma imagem (Retorna a própria string se for base64 ou local)
   async getImageUrl(path: string): Promise<string> {
-    const storageRef = ref(storage, path);
-    return await getDownloadURL(storageRef);
+    return Promise.resolve(path);
   },
 
-  // Listar todas as imagens de uma pasta
+  // Listar todas as imagens de uma pasta (Não suportado por base64, retornamos vazio)
   async listImages(folderPath: string): Promise<string[]> {
-    const folderRef = ref(storage, folderPath);
-    const result = await listAll(folderRef);
-    const urls = await Promise.all(
-      result.items.map(item => getDownloadURL(item))
-    );
-    return urls;
+    return Promise.resolve([]);
   },
 
   // Salvar informações de token no Firestore
@@ -91,9 +116,8 @@ export const storageService = {
 
   // Deletar token (imagem + dados)
   async deleteToken(tokenId: string, imagePath: string): Promise<void> {
-    await this.deleteImage(imagePath);
     const docRef = doc(db, 'tokens', tokenId);
-    await setDoc(docRef, { deleted: true });
+    await setDoc(docRef, { deleted: true }); // Delete soft ou delete hard: await deleteDoc(docRef);
   },
 
   // Salvar configurações gerais do aplicativo
