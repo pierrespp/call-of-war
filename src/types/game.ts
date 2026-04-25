@@ -92,7 +92,6 @@ export interface Unit {
   markedTargetExpiresAtTurn: number; // Turn number when the mark expires
   actions: UnitActions;
   stance: Stance;
-  guardWatchAngle: number | null;
   facingLockedThisTurn: boolean;
 }
 

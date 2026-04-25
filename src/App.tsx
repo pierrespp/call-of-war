@@ -335,7 +335,7 @@ export default function App() {
     if (isMarked) return "marked";
 
     const dist = distanceMeters(observer.x, observer.y, target.x, target.y);
-    const watch = observer.guardWatchAngle ?? observer.rotation ?? 0;
+    const watch = observer.rotation ?? 0;
     const ang = angleDegBetween(observer.x, observer.y, target.x, target.y);
     const diff = Math.abs(normalizeAngle(ang - watch));
 
@@ -472,10 +472,6 @@ export default function App() {
       }
     }
 
-    if (facingMode === "guard") {
-      handleSetGuardClick(worldX, worldY);
-      return;
-    }
     if (facingMode === "facing") {
       handleSetFacingClick(worldX, worldY);
       return;
@@ -662,17 +658,25 @@ export default function App() {
     } catch (e) { alert(e instanceof Error ? e.message : "Erro ao trocar postura"); }
   };
 
-  const handleGuardActivate = () => {
+  const handleGuardActivate = async () => {
     if (!selectedUnitId || !gameState || !roomId || !playerToken) return;
     const u = gameState.units[selectedUnitId];
     if (!u) return;
+
+    if (u.stance === "guard") return; // Já está em guarda
+
     if (!u.actions.intervention) {
       alert("Sem Ação de Intervenção disponível.");
       return;
     }
 
-    setFacingMode("guard");
-    setTargetMode(null);
+    try {
+      const result = await apiService.guardUnit(roomId, playerToken, selectedUnitId, u.rotation);
+      setGameState(result.gameState);
+      setFacingMode(null); // Limpa qualquer modo de clique pendente
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erro ao ativar guarda");
+    }
   };
 
   const handleSetFacingClick = (worldX: number, worldY: number) => {
@@ -958,7 +962,7 @@ export default function App() {
             sandboxTokens
           });
         }}
-        className="fixed top-4 left-4 z-[999] bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg border border-orange-400 flex items-center gap-2 transition-all hover:scale-105"
+        className="fixed bottom-4 left-4 z-[999] bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg border border-orange-400 flex items-center gap-2 transition-all hover:scale-105"
       >
         <Users size={16} /> Sandbox: Equipe {playerTeam} (Clique para mudar)
       </button>
@@ -1576,7 +1580,7 @@ export default function App() {
                               "Cada unidade dispõe de 3 ações por turno, que se renovam ao final do turno.",
                               `M — Movimento: ${selectedUnit.actions.move ? "disponível" : "já utilizada"}. Permite uma movimentação por turno.`,
                               `I — Intervenção: ${selectedUnit.actions.intervention ? "disponível" : "já utilizada"}. Necessária para o primeiro tiro, recarregar, investida ou ativar Guarda.`,
-                              `T — Tática: ${selectedUnit.actions.tactical ? "disponível" : "já utilizada"}. Necessária para deitar/levantar ou redefinir ângulo após mover.`,
+                              `T — Tática: ${selectedUnit.actions.tactical ? "disponível" : "já utilizada"}. Necessária para deitar/levantar ou mudar de direção (girar).`,
                             ],
                           });
                         }} />
@@ -1800,19 +1804,23 @@ export default function App() {
                   <div className="relative">
                     <button
                       onClick={handleGuardActivate}
-                      disabled={!selectedUnit.actions.intervention}
-                      className={cn("w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed", facingMode === "guard" ? "bg-amber-600 text-white" : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300")}
+                      disabled={!selectedUnit.actions.intervention || selectedUnit.stance === "guard"}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed",
+                        selectedUnit.stance === "guard" ? "bg-amber-600 text-white" : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300"
+                      )}
                     >
-                      <Eye size={16} /> Guarda
+                      <Eye size={16} /> {selectedUnit.stance === "guard" ? "Em Guarda" : "Ativar Guarda"}
                     </button>
                     <Info size={12} className="absolute top-1 right-1.5 cursor-pointer text-neutral-500 hover:text-white z-10" onClick={(e) => {
                       e.stopPropagation();
                       setModalData({
                         title: "Postura de Guarda",
                         content: [
-                          "Custo: 1 ação de Intervenção (I) para ativar e definir o arco de vigilância.",
-                          "Quando um inimigo entra no campo de visão da guarda, o jogador é notificado e pode confirmar ou pular o tiro reativo.",
-                          "O tiro reativo paga apenas munição, mas tem -10% de chance de acerto.",
+                          "Custo: 1 ação de Intervenção (I).",
+                          "Quando um inimigo entra no campo de visão (FOV), o jogador é notificado e pode confirmar ou pular o tiro reativo.",
+                          "A guarda segue a direção (FOV) da unidade. Se você girar, a guarda gira junto.",
+                          "O tiro reativo tem -10% de chance de acerto.",
                           "A postura de Guarda é encerrada após disparar.",
                         ],
                       });
@@ -1871,7 +1879,7 @@ export default function App() {
                   <div className="relative col-span-2">
                     <button
                       onClick={() => { setFacingMode(facingMode === "facing" ? null : "facing"); setTargetMode(null); }}
-                      disabled={selectedUnit.facingLockedThisTurn && !selectedUnit.actions.tactical}
+                      disabled={!selectedUnit.actions.tactical}
                       className={cn(
                         "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all shadow-sm",
                         facingMode === "facing" 
@@ -1880,8 +1888,7 @@ export default function App() {
                       )}
                     >
                       <RotateCcw size={16} className={cn("transition-transform duration-300", facingMode === "facing" && "rotate-180")} />
-                      {selectedUnit.stance === "guard" ? "Mudar Direção da Guarda" : "Mudar Direção (Girar)"}
-                      {selectedUnit.facingLockedThisTurn && " (1T)"}
+                      Mudar Direção (Girar)
                     </button>
                     <Info size={12} className="absolute top-1 right-1.5 cursor-pointer text-neutral-500 hover:text-white z-10" onClick={(e) => {
                       e.stopPropagation();
@@ -1889,9 +1896,8 @@ export default function App() {
                         title: "Mudar Direção",
                         content: [
                           "Altera o sentido para o qual a unidade está voltada.",
-                          "Custo: gratuito antes de mover no turno.",
-                          "Após mover, redefinir o ângulo custa 1 ação de Tática (T).",
-                          "Em postura de Guarda, este botão permite reajustar o arco de vigilância.",
+                          "Custo: 1 ação de Tática (T) por giro.",
+                          "Pode ser usado mesmo em postura de Guarda para reorientar a visão.",
                         ],
                       });
                     }} />

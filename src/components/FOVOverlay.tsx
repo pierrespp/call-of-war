@@ -10,7 +10,7 @@ export const FOVOverlay: React.FC<FOVOverlayProps> = ({ unit }) => {
   if (!unit) return null;
 
   const radiusPx = (SCALE.RAIO_VISAO_BASE / METERS_PER_CELL) * CELL_SIZE; // ~40m in pixels
-  const rotation = unit.guardWatchAngle ?? unit.rotation ?? 0;
+  const rotation = unit.rotation ?? 0;
   
   const cx = unit.x;
   const cy = unit.y;

@@ -240,7 +240,6 @@ function ensureUnitDefaults(u: any): Unit {
     markedTargetExpiresAtTurn: u.markedTargetExpiresAtTurn ?? 0,
     actions: u.actions ?? { move: true, intervention: true, tactical: true, chargeUsed: false },
     stance: u.stance ?? "standing",
-    guardWatchAngle: u.guardWatchAngle ?? null,
     facingLockedThisTurn: u.facingLockedThisTurn ?? false,
   };
 }
@@ -314,7 +313,7 @@ function isInFOV(observer: Unit, target: Unit, room: Room): boolean {
     return true; // Bypasses the 90deg and 40m limits
   }
 
-  const watch = observer.guardWatchAngle ?? observer.rotation ?? 0;
+  const watch = observer.rotation ?? 0;
   const ang = angleDegBetween(observer.x, observer.y, target.x, target.y);
   const diff = Math.abs(normalizeAngle(ang - watch));
 
@@ -918,6 +917,9 @@ async function startServer() {
     }
 
     const dest = cellPath[cellPath.length - 1];
+    const prevX = unit.x;
+    const prevY = unit.y;
+
     unit.x = dest.gx * CELL_SIZE + CELL_SIZE / 2;
     unit.y = dest.gy * CELL_SIZE + CELL_SIZE / 2;
     unit.movedThisTurn += cost;
@@ -927,12 +929,31 @@ async function startServer() {
     const className = CLASSES[unit.className]?.name || unit.className;
     pushLog(room, `${unit.name} (${className}) moveu ${cost.toFixed(1)}m (${cellPath.length - 1} célula(s)).`);
 
-    // Guard reactions
+    // Guard reactions - Check vision at every point along the path
     const guards = Object.values(room.gameState.units).filter(
-      (u) => u.team !== unit.team && u.stance === "guard" && u.hp > 0,
+      (u) => (u as Unit).team !== unit.team && (u as Unit).stance === "guard" && (u as Unit).hp > 0,
     );
-    for (const guard of guards) {
-      if (isInFOV(guard, unit, room)) {
+    
+    for (const guardObj of guards) {
+      const guard = guardObj as Unit;
+      let detected = false;
+
+      // Check every step of the path
+      for (const step of cellPath) {
+        // Create a temporary "ghost" unit to check FOV at that specific position
+        const tempUnitPos = {
+          ...unit,
+          x: step.gx * CELL_SIZE + CELL_SIZE / 2,
+          y: step.gy * CELL_SIZE + CELL_SIZE / 2
+        };
+
+        if (isInFOV(guard, tempUnitPos, room)) {
+          detected = true;
+          break;
+        }
+      }
+
+      if (detected) {
         const exists = room.pendingGuardShots.some(
           (p) => p.guardUnitId === guard.id && p.targetUnitId === unit.id,
         );
@@ -944,10 +965,11 @@ async function startServer() {
             guardTeam: guard.team as "A" | "B",
           };
           room.pendingGuardShots.push(pending);
-          pushLog(room, `🛡️ ${guard.name} (Postura de Guarda) detectou ${unit.name}!`);
+          pushLog(room, `🛡️ ${guard.name} (Postura de Guarda) detectou ${unit.name} durante o movimento!`);
         }
       }
       
+      // Emboscada check - Support class can keep shooting at anyone in FOV
       if (guard.skills?.includes("Emboscada")) {
         const otherEnemies = Object.values(room.gameState.units).filter(u => u.team === unit.team && u.hp > 0 && u.id !== unit.id);
         for (const other of otherEnemies) {
@@ -985,15 +1007,11 @@ async function startServer() {
     if (!unit) return res.status(404).json({ error: "Unidade não encontrada" });
     if (unit.team !== room.currentTurn) return res.status(403).json({ error: "Esta unidade não é sua" });
 
-    if (unit.facingLockedThisTurn) {
-      if (!unit.actions.tactical) return res.status(400).json({ error: "Sem Ação Tática disponível para reposicionar o ângulo." });
-      unit.actions.tactical = false;
-      pushLog(room, `${unit.name} usou Ação Tática para reposicionar o ângulo de visão.`);
-    }
+    if (!unit.actions.tactical) return res.status(400).json({ error: "Sem Ação Tática disponível para mudar a direção." });
+    unit.actions.tactical = false;
     unit.rotation = rotation;
-    if (unit.stance === "guard") {
-      unit.guardWatchAngle = rotation;
-    }
+    pushLog(room, `${unit.name} mudou a direção (Ação Tática).`);
+    
     res.json({ success: true, gameState: room.gameState });
   });
 
@@ -1303,8 +1321,7 @@ async function startServer() {
     if (!unit.actions.intervention) return res.status(400).json({ error: "Sem Ação de Intervenção para Postura de Guarda." });
     unit.actions.intervention = false;
     unit.stance = "guard";
-    unit.guardWatchAngle = (typeof watchAngle === "number" && !isNaN(watchAngle)) ? watchAngle : unit.rotation;
-    pushLog(room, `🛡️ ${unit.name} assumiu Postura de Guarda redirecionada para ${Math.round(unit.guardWatchAngle)}°.`);
+    pushLog(room, `🛡️ ${unit.name} assumiu Postura de Guarda (seguindo sua visão atual).`);
     res.json({ success: true, gameState: room.gameState });
   });
 
@@ -1356,7 +1373,6 @@ async function startServer() {
         pushLog(room, `🛡️ ${guard.name} possui Emboscada e mantém a Postura de Guarda apesar do bloqueio!`);
       } else {
         guard.stance = "standing";
-        guard.guardWatchAngle = null;
       }
       return res.json({ success: true, gameState: room.gameState, cover: coverInfo });
     }
@@ -1368,7 +1384,6 @@ async function startServer() {
       pushLog(room, `🛡️ ${guard.name} possui Emboscada e mantém a Postura de Guarda!`);
     } else {
       guard.stance = "standing";
-      guard.guardWatchAngle = null;
     }
     
     res.json({ success: true, gameState: room.gameState, cover: coverInfo });
@@ -1390,7 +1405,7 @@ async function startServer() {
         unit.actions = { move: true, intervention: true, tactical: true, chargeUsed: false };
         unit.facingLockedThisTurn = false;
       } else {
-        if (unit.stance === "guard") { unit.stance = "standing"; unit.guardWatchAngle = null; }
+        if (unit.stance === "guard") { unit.stance = "standing"; }
       }
     });
     room.currentTurn = room.currentTurn === "A" ? "B" : "A";
