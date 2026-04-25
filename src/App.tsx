@@ -422,11 +422,15 @@ export default function App() {
 
   // ── Fog of War Logic ───────────────────────────────────────────────────────
   const isEnemyVisible = useCallback((enemy: Unit): boolean => {
-    if (!gameState || !playerTeam) return true;
+    if (!gameState || !playerTeam) {
+      console.warn("Visibility check: gameState or playerTeam missing", { gameState: !!gameState, playerTeam });
+      return true;
+    }
     if (enemy.team === playerTeam) return true;
     const myUnits = Object.values(gameState.units).filter(u => (u as Unit).team === playerTeam);
-    return myUnits.some(myUnit => isInFOVClient(myUnit as Unit, enemy));
-  }, [gameState, playerTeam]);
+    const visible = myUnits.some(myUnit => isInFOVClient(myUnit as Unit, enemy));
+    return visible;
+  }, [gameState, playerTeam, mapCoverConfig]);
 
   useEffect(() => {
     if (!gameState || !playerTeam) return;
@@ -448,17 +452,31 @@ export default function App() {
       });
       return changed ? next : prev;
     });
-  }, [gameState, playerTeam, isEnemyVisible]);
+  }, [gameState, playerTeam, isEnemyVisible, mapCoverConfig]);
 
   const handleCanvasClick = async (e: React.MouseEvent) => {
     if (isPanning || !canvasRef.current || !gameState) return;
+    
+    // Block actions (but not selection) if there are pending guard shots we aren't the one deciding
+    const isPausedByOpponentGuard = pendingGuardShots.length > 0 && !guardShotDecision;
     if (!isMyTurn || !selectedUnitId) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
     const worldX = (e.clientX - rect.left) / zoom;
     const worldY = (e.clientY - rect.top) / zoom;
 
-    if (facingMode) {
+    // Handle selection and actions
+    if (isPausedByOpponentGuard) {
+      if (facingMode || targetMode === "move" || moveManualPath) {
+        return; // Block movement/facing modes
+      }
+    }
+
+    if (facingMode === "guard") {
+      handleSetGuardClick(worldX, worldY);
+      return;
+    }
+    if (facingMode === "facing") {
       handleSetFacingClick(worldX, worldY);
       return;
     }
@@ -510,7 +528,10 @@ export default function App() {
   const handleUnitClick = async (e: React.MouseEvent, unit: Unit) => {
     e.stopPropagation();
 
+    const isPausedByOpponentGuard = pendingGuardShots.length > 0 && !guardShotDecision;
+
     if (targetMode === "heal" && selectedUnitId && gameState && roomId && appState.session?.token) {
+      if (isPausedByOpponentGuard) return;
       if (unit.id === selectedUnitId) return;
       const source = gameState.units[selectedUnitId];
       if (source.team !== unit.team) {
@@ -529,6 +550,7 @@ export default function App() {
     }
 
     if (targetMode === "mark" && selectedUnitId && gameState && roomId && appState.session?.token) {
+      if (isPausedByOpponentGuard) return;
       if (unit.id === selectedUnitId) return;
       const source = gameState.units[selectedUnitId];
       if (source.team === unit.team) return;
@@ -548,6 +570,7 @@ export default function App() {
     }
 
     if (targetMode === "shoot" && selectedUnitId && gameState) {
+      if (isPausedByOpponentGuard) return;
       if (unit.id === selectedUnitId) return;
       const source = gameState.units[selectedUnitId];
       if (source.team === unit.team) return;
@@ -648,12 +671,8 @@ export default function App() {
       return;
     }
 
-    // Activate guard immediately with current rotation
-    apiService
-      .guardUnit(roomId, playerToken, selectedUnitId, u.rotation)
-      .then((r) => setGameState(r.gameState))
-      .catch((e) => alert(e instanceof Error ? e.message : "Erro ao ativar guarda"))
-      .finally(() => setFacingMode(null));
+    setFacingMode("guard");
+    setTargetMode(null);
   };
 
   const handleSetFacingClick = (worldX: number, worldY: number) => {
@@ -1853,19 +1872,26 @@ export default function App() {
                     <button
                       onClick={() => { setFacingMode(facingMode === "facing" ? null : "facing"); setTargetMode(null); }}
                       disabled={selectedUnit.facingLockedThisTurn && !selectedUnit.actions.tactical}
-                      className={cn("w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed", facingMode === "facing" ? "bg-cyan-600 text-white" : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300")}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all shadow-sm",
+                        facingMode === "facing" 
+                          ? "bg-cyan-600 text-white ring-2 ring-cyan-400 ring-offset-2 ring-offset-neutral-900" 
+                          : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 disabled:opacity-40 disabled:cursor-not-allowed border border-neutral-700"
+                      )}
                     >
-                      🎯 Definir Ângulo {selectedUnit.facingLockedThisTurn && "(Tática)"}
+                      <RotateCcw size={16} className={cn("transition-transform duration-300", facingMode === "facing" && "rotate-180")} />
+                      {selectedUnit.stance === "guard" ? "Mudar Direção da Guarda" : "Mudar Direção (Girar)"}
+                      {selectedUnit.facingLockedThisTurn && " (1T)"}
                     </button>
                     <Info size={12} className="absolute top-1 right-1.5 cursor-pointer text-neutral-500 hover:text-white z-10" onClick={(e) => {
                       e.stopPropagation();
                       setModalData({
-                        title: "Definir Ângulo",
+                        title: "Mudar Direção",
                         content: [
-                          "Altera o sentido para o qual a unidade está voltada (campo de visão).",
+                          "Altera o sentido para o qual a unidade está voltada.",
                           "Custo: gratuito antes de mover no turno.",
-                          "Após mover, redefinir o ângulo passa a custar 1 ação de Tática (T).",
-                          "Importante para reagir a flancos e otimizar a Postura de Guarda.",
+                          "Após mover, redefinir o ângulo custa 1 ação de Tática (T).",
+                          "Em postura de Guarda, este botão permite reajustar o arco de vigilância.",
                         ],
                       });
                     }} />
@@ -1996,6 +2022,19 @@ export default function App() {
           </div>
         );
       })()}
+
+      {/* Game Paused Overlay (Opponent is reacting) */}
+      {appState === "battle" && pendingGuardShots.length > 0 && !guardShotDecision && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[105] pointer-events-none select-none">
+          <div className="bg-amber-600/90 backdrop-blur-md text-white px-6 py-3 rounded-full shadow-2xl flex flex-col items-center gap-1 border border-white/20 animate-bounce">
+            <div className="flex items-center gap-2">
+              <RotateCcw className="animate-spin" size={18} />
+              <span className="text-sm font-bold uppercase tracking-wider">Turno Suspenso</span>
+            </div>
+            <p className="text-[10px] font-medium opacity-80">Aguardando decisão de Guarda do oponente...</p>
+          </div>
+        </div>
+      )}
 
       {/* Manual move bar */}
       {moveManualPath && (

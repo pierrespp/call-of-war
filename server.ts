@@ -837,6 +837,12 @@ async function startServer() {
   // ── Helper: validate it's caller's turn during active battle ──────────────
   function validateTurn(room: Room, playerToken: string): { error?: string; status?: number } {
     if (room.phase !== "active") return { error: "Batalha não iniciada", status: 400 };
+    
+    // Check for pending guard shots before anything else
+    if (room.pendingGuardShots.length > 0) {
+      return { error: "Ação bloqueada: aguardando reação de Guarda do oponente.", status: 409 };
+    }
+
     const currentPlayer = room.players[room.currentTurn];
     if (!currentPlayer || currentPlayer.token !== playerToken) return { error: "Não é seu turno", status: 403 };
     return {};
