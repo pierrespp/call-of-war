@@ -112,7 +112,7 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
   const [brush, setBrush] = useState<CoverType>("half");
   const [toolMode, setToolMode] = useState<ToolMode>("draw");
   const [userPrompt, setUserPrompt] = useState<string>("");
-  const [mapGenModel, setMapGenModel] = useState<string>("imagen-3.0-generate-001");
+  const [mapGenModel, setMapGenModel] = useState<string>("gemini-3.1-flash-image-preview");
 
   const [zoom, setZoom] = useState(0.4);
   const [camera, setCamera] = useState({ x: 0, y: 0 });
@@ -457,9 +457,8 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
               onChange={(e) => setMapGenModel(e.target.value)}
               className="w-full bg-neutral-900 border border-neutral-600 text-white rounded p-3 text-sm focus:outline-none focus:border-indigo-500"
             >
-              <option value="imagen-3.0-generate-001">Imagen 3.0 (Recomendado, maior qualidade)</option>
-              <option value="imagen-3.0-fast-generate-001">Imagen 3.0 Fast (Mais rápido)</option>
-              <option value="gemini-2.5-flash-image-preview">Gemini 2.5 Flash Image Preview (Experimental)</option>
+              <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image Preview (Recomendado)</option>
+              <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Mais Rápido)</option>
             </select>
           </div>
 

@@ -98,7 +98,7 @@ export async function generateMapFromLegend(
   userPrompt: string,
   gridWidth: number,
   gridHeight: number,
-  modelName: string = "imagen-3.0-generate-001"
+  modelName: string = "gemini-3.1-flash-image-preview"
 ): Promise<GenerateMapResult> {
   reserveSlotOrThrow();
   const client = getClient();
