@@ -26,7 +26,6 @@ export default defineConfig(({mode}) => {
             // App chunks
             'game-components': [
               './src/components/DeployScreen',
-              './src/components/MoveConfirmModal',
             ],
             'menu-components': [
               './src/components/CreateMatchMenu',
@@ -43,7 +42,7 @@ export default defineConfig(({mode}) => {
     },
     server: {
       host: '0.0.0.0',
-      port: 5000,
+      port: 3000,
       allowedHosts: true,
       hmr: process.env.DISABLE_HMR !== 'true',
     },

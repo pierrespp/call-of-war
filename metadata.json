@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Call of War VTT",
+  "description": "A web-based virtual tabletop for the Call of War RPG, featuring tactical maps, fog of war, and an AI map generator.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

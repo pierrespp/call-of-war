@@ -190,6 +190,7 @@ function emptyGameState(): GameState {
     units: {},
     logs: [{ id: randomUUID(), timestamp: Date.now(), message: "Sala criada. Aguardando início da partida." }],
     mapId: "cidade_ruinas",
+    turnNumber: 1,
   };
 }
 
@@ -212,6 +213,8 @@ function ensureUnitDefaults(u: any): Unit {
     extraMoveMeters: u.extraMoveMeters ?? 0,
     shotsThisTurn: u.shotsThisTurn ?? 0,
     ammoInMag: u.ammoInMag ?? (weapon?.reload ?? 0),
+    markedTargetId: u.markedTargetId ?? null,
+    markedTargetExpiresAtTurn: u.markedTargetExpiresAtTurn ?? 0,
     actions: u.actions ?? { move: true, intervention: true, tactical: true, chargeUsed: false },
     stance: u.stance ?? "standing",
     guardWatchAngle: u.guardWatchAngle ?? null,
@@ -269,13 +272,45 @@ function pathHitsWall(room: Room, mapId: string, sx: number, sy: number, tx: num
   return false;
 }
 
-function isInsideArc(guard: Unit, target: Unit, arcDeg = 90, rangeMeters = SCALE.RAIO_VISAO_BASE) {
-  const dist = distanceMeters(guard.x, guard.y, target.x, target.y);
-  if (dist > rangeMeters) return false;
-  const watch = guard.guardWatchAngle ?? guard.rotation ?? 0;
-  const ang = angleDegBetween(guard.x, guard.y, target.x, target.y);
+function isInFOV(observer: Unit, target: Unit, room: Room): boolean {
+  const mapCover = getRoomCover(room, room.gameState.mapId) as Record<string, CoverType>;
+  const distMeters = distanceMeters(observer.x, observer.y, target.x, target.y);
+
+  // If target is currently marked by observer, it bypasses arc/distance restrictions
+  const isMarked = observer.className === "Sniper" && 
+                   observer.attachments.includes("Objetiva") && 
+                   observer.markedTargetId === target.id;
+
+  // 3 & 4. Obstructed Vision or Target in Full Cover -> No Vision
+  const coverInfo = computeShotCover(observer.x, observer.y, target.x, target.y, mapCover);
+  if (coverInfo.hasWall || coverInfo.cover === "full") {
+    return false;
+  }
+
+  if (isMarked) {
+    return true; // Bypasses the 90deg and 40m limits
+  }
+
+  const watch = observer.guardWatchAngle ?? observer.rotation ?? 0;
+  const ang = angleDegBetween(observer.x, observer.y, target.x, target.y);
   const diff = Math.abs(normalizeAngle(ang - watch));
-  return diff <= arcDeg / 2;
+
+  // 1. Arc 90°, range <= 40m
+  if (distMeters <= SCALE.RAIO_VISAO_BASE) {
+    if (diff <= 45) return true; // 45° either side = 90° total
+  }
+
+  // 2. Extensão frontal além de 40m
+  // SOMENTE o Sniper com habilidade/acessório específica (ex: Objetiva) vê além de 40m na frente
+  const isSniper = observer.className === "Sniper";
+  const hasObjetiva = observer.attachments.includes("Objetiva");
+  if (isSniper && hasObjetiva) {
+    if (diff <= 10) { // Narrow frontal cone
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // ─── Draft validation (max 9 units, max 100 pts) ──────────────────────────
@@ -446,7 +481,7 @@ async function deleteFromFirebaseStorage(imageUrl: string): Promise<void> {
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 5000;
+  const PORT = 3000;
   // 12 MB lets the AI Map Generator POST a 2500×2500 PNG legend without errors.
   app.use(express.json({ limit: "12mb" }));
 
@@ -720,6 +755,7 @@ async function startServer() {
       room.gameState = {
         units,
         mapId: room.draft.selectedMap,
+        turnNumber: 1,
         logs: [{ id: randomUUID(), timestamp: Date.now(), message: "⚔️ Batalha iniciada! Turno da Equipe A." }],
       };
       room.phase = "active";
@@ -819,7 +855,7 @@ async function startServer() {
       (u) => u.team !== unit.team && u.stance === "guard" && u.hp > 0,
     );
     for (const guard of enemies) {
-      if (isInsideArc(guard, unit)) {
+      if (isInFOV(guard, unit, room)) {
         const exists = room.pendingGuardShots.some(
           (p) => p.guardUnitId === guard.id && p.targetUnitId === unit.id,
         );
@@ -868,13 +904,23 @@ async function startServer() {
     const weapon = attacker.weaponName ? WEAPONS[attacker.weaponName] : null;
     if (!weapon) return { ok: false, error: "Atirador sem arma" };
 
+    let targetIsSurprised = !fromGuard && !isInFOV(target, attacker, room);
+
+    if (targetIsSurprised && target.skills && target.skills.includes("Sexto Sentido")) {
+      targetIsSurprised = false;
+      pushLog(room, `🛡️ Sexto Sentido: ${target.name} percebeu o ataque e não foi surpreendido!`);
+    }
+
+    const effectiveCover = targetIsSurprised ? "none" : coverLevel;
+
     let hitRate = CLASSES[attacker.className]?.hit ?? 60;
     if (distancePenalty) hitRate -= distancePenalty;
-    if (coverLevel === "half") hitRate -= 20;
-    if (coverLevel === "full") hitRate -= 40;
+    if (effectiveCover === "half") hitRate -= 20;
+    if (effectiveCover === "full") hitRate -= 40;
     if (fromGuard) hitRate -= 10;
     if (target.stance === "guard") hitRate -= 10;
     if (target.stance === "prone") hitRate -= 10;
+    if (targetIsSurprised) hitRate += 10;
     if (hitRate < 5) hitRate = 5;
 
     const roll = Math.floor(Math.random() * 100) + 1;
@@ -937,6 +983,10 @@ async function startServer() {
     if (attacker.shotsThisTurn >= weapon.shots) return res.status(400).json({ error: `Limite de ${weapon.shots} disparo(s) por turno atingido.` });
     if (attacker.shotsThisTurn === 0 && !attacker.actions.intervention) return res.status(400).json({ error: "Sem Ação de Intervenção disponível neste turno." });
 
+    if (!isInFOV(attacker, target, room)) {
+      return res.status(400).json({ error: "O alvo está fora do seu campo de visão (FOV)." });
+    }
+
     // Authoritative cover calculation (Etapa 4).
     const mapCover = getRoomCover(room, room.gameState.mapId) as Record<string, CoverType>;
     const coverInfo = computeShotCover(attacker.x, attacker.y, target.x, target.y, mapCover);
@@ -948,6 +998,45 @@ async function startServer() {
     const r = performShot(room, attacker, target, coverInfo.cover, distancePenalty);
     if (!r.ok) return res.status(400).json({ error: r.error });
     res.json({ success: true, gameState: room.gameState, cover: coverInfo });
+  });
+
+  // ── Mark Target ──────────────────────────────────────────────────────────
+  app.post("/api/rooms/:roomId/mark-target", (req, res) => {
+    const { roomId } = req.params;
+    const { sniperId, targetId, playerToken } = req.body;
+    const room = rooms[roomId];
+    if (!room) return res.status(404).json({ error: "Sala não encontrada" });
+    const v = validateTurn(room, playerToken);
+    if (v.error) return res.status(v.status!).json({ error: v.error });
+    
+    const sniper = room.gameState.units[sniperId];
+    const target = room.gameState.units[targetId];
+    if (!sniper || !target) return res.status(404).json({ error: "Unidade não encontrada" });
+    if (sniper.team !== room.currentTurn) return res.status(403).json({ error: "Esta unidade não é sua" });
+    
+    if (sniper.className !== "Sniper" || !sniper.attachments.includes("Objetiva")) {
+      return res.status(400).json({ error: "Apenas Snipers com Objetiva podem marcar alvos." });
+    }
+    if (!sniper.actions.tactical) {
+      return res.status(400).json({ error: "Sem Ação Tática disponível para marcar o alvo." });
+    }
+    if (!isInFOV(sniper, target, room)) {
+      return res.status(400).json({ error: "O alvo deve estar no seu campo de visão para ser marcado." });
+    }
+
+    const distMeters = distanceMeters(sniper.x, sniper.y, target.x, target.y);
+    const range = SCALE.ALCANCE_LONGO;
+    if (distMeters > range) {
+      return res.status(400).json({ error: `O alvo está além do alcance da arma (${distMeters.toFixed(1)}m > ${range}m) e não pode ser marcado.` });
+    }
+
+    // Marcação consume Ação Tática e dura até o final do próximo turno do Sniper
+    sniper.actions.tactical = false;
+    sniper.markedTargetId = target.id;
+    sniper.markedTargetExpiresAtTurn = room.gameState.turnNumber + 4; // Turno do Sniper -> Turno Inimigo -> Turno Sniper (pode atirar) -> Turno Inimigo (limpa antes de começar)
+
+    pushLog(room, `🎯 ${sniper.name} marcou ${target.name} como alvo. (A marcação dura 1 turno)`);
+    res.json({ success: true, gameState: room.gameState });
   });
 
   // ── Reload ───────────────────────────────────────────────────────────────
@@ -1088,8 +1177,19 @@ async function startServer() {
       }
     });
     room.currentTurn = room.currentTurn === "A" ? "B" : "A";
+    room.gameState.turnNumber++;
+
+    // Clear expired marked targets for the NEW player whose turn is starting.
+    Object.values(room.gameState.units).forEach((unit) => {
+      if (unit.team === room.currentTurn && unit.markedTargetId) {
+        if (room.gameState.turnNumber >= unit.markedTargetExpiresAtTurn) {
+          unit.markedTargetId = null;
+        }
+      }
+    });
+
     const nextPlayer = room.players[room.currentTurn];
-    pushLog(room, `🔄 Turno da Equipe ${room.currentTurn}${nextPlayer ? ` — ${nextPlayer.name}` : ""}.`);
+    pushLog(room, `🔄 Turno ${room.gameState.turnNumber} - Equipe ${room.currentTurn}${nextPlayer ? ` — ${nextPlayer.name}` : ""}.`);
     res.json({ success: true, gameState: room.gameState, currentTurn: room.currentTurn });
   });
 
@@ -1273,11 +1373,12 @@ async function startServer() {
   // on the generated image. Returns a single payload so the client can render
   // the preview + overlay in one shot.
   app.post("/api/ai-maps/generate", async (req, res) => {
-    const { legendImage, userPrompt, gridWidth, gridHeight } = req.body as {
+    const { legendImage, userPrompt, gridWidth, gridHeight, mapGenModel } = req.body as {
       legendImage?: string;
       userPrompt?: string;
       gridWidth?: number;
       gridHeight?: number;
+      mapGenModel?: string;
     };
     if (!legendImage || typeof legendImage !== "string") {
       return res.status(400).json({ error: "Imagem de legenda ausente." });
@@ -1291,6 +1392,7 @@ async function startServer() {
         (userPrompt || "").toString(),
         gridWidth!,
         gridHeight!,
+        mapGenModel
       );
       // Cover detection consumes a second slot from the limiter on purpose
       // (the user spec accounts for it in the 8 req/min cap).

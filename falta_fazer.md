@@ -49,7 +49,7 @@ O sistema possui acessórios e habilidades definidos em `src/data/constants.ts`,
 
 ## Status das etapas
 
-- [ ] Etapa 1 — Atualizar constants.ts com campos numéricos e desativar Sexto Sentido
+- [x] Etapa 1 — Atualizar constants.ts com campos numéricos e desativar Sexto Sentido
 - [ ] Etapa 2 — Implementar bônus de acessórios no servidor (performShot)
 - [ ] Etapa 3 — Implementar Disparo Compensado (servidor + cliente)
 - [ ] Etapa 4 — Criar mecânica de cura do Médico (servidor + interface)
@@ -184,5 +184,11 @@ O sistema possui acessórios e habilidades definidos em `src/data/constants.ts`,
 ---
 
 ## Log de execução
+
+**Etapa 1 Concluída:**
+- Adicionados os campos numéricos nas definições de `Attachment` (`src/types/game.ts`).
+- Atualizadas as restrições em `constants.ts` para Objetiva, Red Dot, Grip e Bi-pé.
+- Atualizada a descrição do Sexto Sentido para indicar desativação.
+- `npx tsc --noEmit` passou com sucesso.
 
 *(Será preenchido conforme as etapas forem concluídas)*

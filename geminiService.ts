@@ -26,6 +26,9 @@ const COVER_TYPES = [
   "water",
   "deployA",
   "deployB",
+  "doorOpen",
+  "doorClose",
+  "window",
 ] as const;
 export type CoverType = (typeof COVER_TYPES)[number];
 export type CoverData = Record<string, CoverType>;
@@ -48,7 +51,7 @@ export class GeminiRateLimitError extends Error {
 export class GeminiConfigurationError extends Error {
   constructor() {
     super(
-      "GEMINI_API_KEY não configurada no servidor. Adicione-a aos Secrets do Replit.",
+      "GOOGLE_GENAI_API_KEY não configurada no servidor. Adicione-a aos Secrets do App.",
     );
     this.name = "GeminiConfigurationError";
   }
@@ -58,7 +61,7 @@ let cachedClient: GoogleGenAI | null = null;
 
 function getClient(): GoogleGenAI {
   if (cachedClient) return cachedClient;
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GOOGLE_GENAI_API_KEY;
   if (!apiKey || apiKey.trim().length === 0) {
     throw new GeminiConfigurationError();
   }
@@ -67,7 +70,7 @@ function getClient(): GoogleGenAI {
 }
 
 export function isGeminiConfigured(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY?.trim());
+  return Boolean(process.env.GOOGLE_GENAI_API_KEY?.trim());
 }
 
 function reserveSlotOrThrow(): void {
@@ -95,6 +98,7 @@ export async function generateMapFromLegend(
   userPrompt: string,
   gridWidth: number,
   gridHeight: number,
+  modelName: string = "imagen-3.0-generate-001"
 ): Promise<GenerateMapResult> {
   reserveSlotOrThrow();
   const client = getClient();
@@ -107,7 +111,7 @@ export async function generateMapFromLegend(
   });
 
   const response = await client.models.generateContent({
-    model: IMAGE_MODEL,
+    model: modelName,
     contents: [
       {
         role: "user",

@@ -35,7 +35,7 @@ Esta regra vale do começo ao fim do plano. **Não pular, não agrupar etapas.**
 |---|---|
 | Ângulo do cone | 90° |
 | Alcance base (cone fechado) | 40m (distância Média) |
-| Além dos 40m (direção frontal) | Visão ilimitada na frente (sem restrição lateral) |
+| Além dos 40m (direção frontal) | Limitado. SOMENTE o Sniper com habilidade específica (ex: Objetiva) vê além de 40m na frente |
 | FOV bloqueia ataque | Sim — não pode atacar quem está fora do cone |
 | Surpresa | Atirador fora do FOV do alvo → alvo sem cobertura + +10% hit |
 | Visão Obstruída | Todas as linhas de tiro cruzam cobertura total → sem visão |
@@ -60,15 +60,15 @@ Esta regra vale do começo ao fim do plano. **Não pular, não agrupar etapas.**
 
 ## Status das etapas
 
-- [ ] Etapa 1 — Adicionar campos de FOV e alvo marcado nos tipos e na unidade
-- [ ] Etapa 2 — Criar função `isInFOV` no servidor (cone 90° + extensão frontal + Visão Obstruída)
-- [ ] Etapa 3 — Validar FOV em `performShot` (bloquear ataque fora do cone)
-- [ ] Etapa 4 — Implementar surpresa no `performShot` (alvo fora do FOV do atirador)
-- [ ] Etapa 5 — Implementar ação "Marcar Alvo" do Sniper com Objetiva (servidor + cliente)
-- [ ] Etapa 6 — Renderizar cone SVG no cliente (overlay visual sobre o mapa)
-- [ ] Etapa 7 — Destaque visual de inimigos visíveis / obstruídos / fora de alcance no modo de mira
-- [ ] Etapa 8 — Habilitar Sexto Sentido (detecta ataques fora do FOV — já desabilitado, agora com base para implementar)
-- [ ] Etapa 9 — Testes e validação end-to-end
+- [x] Etapa 1 — Adicionar campos de FOV e alvo marcado nos tipos e na unidade
+- [x] Etapa 2 — Criar função `isInFOV` no servidor (cone 90° + extensão frontal + Visão Obstruída)
+- [x] Etapa 3 — Validar FOV em `performShot` (bloquear ataque fora do cone)
+- [x] Etapa 4 — Implementar surpresa no `performShot` (alvo fora do FOV do atirador)
+- [x] Etapa 5 — Implementar ação "Marcar Alvo" do Sniper com Objetiva (servidor + cliente)
+- [x] Etapa 6 — Renderizar cone SVG no cliente (overlay visual sobre o mapa)
+- [x] Etapa 7 — Destaque visual de inimigos visíveis / obstruídos / fora de alcance no modo de mira
+- [x] Etapa 8 — Habilitar Sexto Sentido (detecta ataques fora do FOV — já desabilitado, agora com base para implementar)
+- [x] Etapa 9 — Testes e validação end-to-end
 
 ---
 
@@ -95,8 +95,8 @@ markedTargetExpiresAtTurn: number;    // número do turno em que a marcação ex
 
 **Objetivo:** Função central que determina se uma unidade (`observer`) consegue ver outra unidade (`target`), aplicando todas as regras:
 
-1. **Cone de 90°, alcance ≤ 40m** — usa lógica de `isInsideArc` existente
-2. **Extensão frontal além de 40m** — se o alvo está além de 40m mas está dentro de um ângulo estreito frontal (≤ 10° do centro da rotação), ainda é visível
+1. **Cone de 90°, alcance ≤ 40m** — usa lógica de `isInsideArc` existente para TODAS as unidades
+2. **Extensão frontal além de 40m** — SE a unidade for um Sniper com a habilidade/acessório correto (ex: Objetiva), e o alvo estiver além de 40m dentro de um ângulo estreito frontal (≤ 10° do centro da rotação), é visível. Outras classes são cegas após 40m.
 3. **Visão Obstruída** — verifica via `computeShotCover` / `pathHitsWall` se todas as linhas de tiro cruzam cobertura total; se sim, sem visão
 4. **Cobertura total do alvo** — se o alvo está em cobertura total E dentro do cone, sem visão (conforme regra)
 
@@ -259,4 +259,32 @@ Body: { playerToken, sniperId, targetId }
 
 ## Log de execução
 
-*(Será preenchido conforme as etapas forem concluídas)*
+- **Etapa 1:** Concluída.
+  - Arquivos alterados:
+    - `src/types/game.ts`: Adicionado `markedTargetId`, `markedTargetExpiresAtTurn` à interface `Unit`. Adicionado `turnNumber` à interface `GameState`.
+    - `server.ts`: Atualizado `ensureUnitDefaults` para inicializar os alvos marcados com `null` e `0`. Atualizado `emptyGameState` para começar com `turnNumber: 1` e `endTurn` iterando o respectivo turno e limpando as marcações de unidades. Atualizado logicamente no Deploy.
+  - Testes: Validação de tipos `tsc` executada e passando. Vários fixes de tipagem secundários do arquivo `.tsx` reparados.
+- **Etapas 2, 3 e 4:** Concluídas.
+  - Arquivos alterados:
+    - `server.ts`:
+        - Substituto logico `isInsideArc` com método `isInFOV` checando restrição de visão.
+        - Validado requisição em API `/shoot` antes de acionar `performShot`.
+        - Embutido lógica surpresa no `performShot` e aplicado bonus de hit e remover `cover`.
+- **Etapa 5:** Concluída.
+  - Criado endpoint `/api/rooms/:roomId/mark-target`.
+  - Atualizado `isInFOV` para aceitar alvo marcado ignorando limitações de arco/distância.
+  - Client side: Adicionado botão "Marcar Alvo", novo modo `targetMode === "mark"`, função `markTarget` e interface atualizada.
+- **Etapa 6:** Concluída.
+  - Criado `src/components/FOVOverlay.tsx` para renderizar SVG do campo de visão.
+  - Inserido no map viewport no `src/App.tsx`.
+- **Etapa 7:** Concluída.
+  - Adicionado helper `isInFOVClient` e `getFOVState` no `src/App.tsx` para replicar a lógica do backend de visão.
+  - O loop de renderizar os tokens dentro do `src/App.tsx` agora avalia a visibilidade dos inimigos quando em estado de atirar e altera a borda de acordo. Se tiver atrás de parede recebe 🚫 com borda vermelha e opacidade reduzida, se estiver fora do cone mesma coisa sem ícone. Se for marcado recebe marca luminosa.
+  - Clique está bloqueado para inimiogos que não podem ser almejados.
+- **Etapa 8:** Concluída.
+  - Atualizada a função `performShot` em `server.ts` para checar array de `skills` do target; se possuir `"Sexto Sentido"`, anula `targetIsSurprised` e adiciona log de bloqueio de surpresa.
+  - Atualizada a descrição textual da habilidade no `src/data/constants.ts` para refletir as regras de Evasão corretas.
+- **Etapa 9:** Aguardando testes do usuário.
+  - O código para permitir controle adequado do Time B no modo singleplayer/sandbox foi consertado nas sessões de Deploy e Criação (draft).
+  - Por favor, teste os cenários listados no Checklist da Etapa 9 diretamente jogando no preview.
+
