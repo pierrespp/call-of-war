@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "HRKDNrAGDbzPpQ001DBMV"
+uri = "file://PROGRESSO.md"
+type = "text"
+title = "Progresso do projeto — Call of War VTT"
