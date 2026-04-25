@@ -54,8 +54,8 @@ O sistema possui acessórios e habilidades definidos em `src/data/constants.ts`,
 - [x] Etapa 3 — Implementar Disparo Compensado (servidor + cliente)
 - [x] Etapa 4 — Criar mecânica de cura do Médico (servidor + interface)
 - [x] Etapa 5 — Implementar Linha de Frente
-- [ ] Etapa 6 — Implementar Emboscada
-- [ ] Etapa 7 — Corrigir tooltips de acessórios no draft e desabilitar Sexto Sentido na UI
+- [x] Etapa 6 — Implementar Emboscada
+- [x] Etapa 7 — Corrigir tooltips de acessórios no draft e desabilitar Sexto Sentido na UI
 - [ ] Etapa 8 — Testes e validação end-to-end
 
 ---
@@ -212,5 +212,14 @@ O sistema possui acessórios e habilidades definidos em `src/data/constants.ts`,
 **Etapa 5 Concluída:**
 - Atualizada a permissão de disparo na Rota `/api/rooms/:roomId/shoot` do `server.ts` para permitir atirar caso o a unidade possua a habilidade "Linha de Frente". Diferente das demais classes, agora o tiro não consome `actions.intervention` para o Atirador com esta habilidade.
 - A interface (`App.tsx`) no botão "Atirar" foi atualizada para aplicar dinamicamente o texto informativo sobre o não consumo de "Intervenção" e evitar bloquear o botão.
+
+**Etapa 6 Concluída:**
+- Atualizadas as rotas `/api/rooms/:roomId/move` (e o equivalente na movimentação de fato) no `server.ts` para que, ao se verificar inimigos no campo de visão, se a unidade em guarda possuir `Emboscada`, registrar também outros inimigos que se encontrem no FOV.
+- Atualizada a Rota de guarda `/api/rooms/:roomId/guard-shot` para que a postura de guarda (`guard.stance = "standing"`) não seja resetada após o tiro quando a unidade tem `Emboscada` e há munição na arma, gerindo melhor o fluxo das janelas de Overwatch.
+
+**Etapa 7 Concluída:**
+- Atualizados os tooltips em `src/components/CreateMatchMenu.tsx` para os acessórios exibirem `att.description` em vez de apenas o nome ao se colocar o mouse por cima (`title={att.description}`).
+- Adicionado bloqueio visual à habilidade "Sexto Sentido" (usando a tag `disabled` e propriedades de opacidade) e inserida diretamente na interface a tag indicativa "🔒 Em breve".
+- Também foi corrigido o erro 429 Quota Exceeded do Map Generator da AI mudando o modelo para `gemini-2.5-flash-image`, visto que o preview de alta qualidade tem limites zero no free tier no momento.
 
 *(Será preenchido conforme as etapas forem concluídas)*

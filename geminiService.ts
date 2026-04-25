@@ -98,7 +98,7 @@ export async function generateMapFromLegend(
   userPrompt: string,
   gridWidth: number,
   gridHeight: number,
-  modelName: string = "gemini-3.1-flash-image-preview"
+  modelName: string = "imagen-3.0-generate-001"
 ): Promise<GenerateMapResult> {
   reserveSlotOrThrow();
   const client = getClient();
@@ -110,32 +110,54 @@ export async function generateMapFromLegend(
     userTheme: userPrompt,
   });
 
-  const response = await client.models.generateContent({
-    model: modelName,
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType, data } },
-        ],
-      },
-    ],
-  });
+  // Free-tier fallback that ignores the reference image and generates text-to-image
+  if (modelName.startsWith("imagen-3.0")) {
+    const response = await client.models.generateImages({
+      model: modelName,
+      prompt: prompt,
+      config: {
+        numberOfImages: 1,
+        outputMimeType: "image/png",
+        aspectRatio: "1:1"
+      }
+    });
+    
+    if (response.generatedImages && response.generatedImages.length > 0) {
+      return {
+        imageBase64: response.generatedImages[0].image.imageBytes,
+        mimeType: "image/png",
+      };
+    }
+  } else {
+    // Advanced image-to-image models (gemini-2.5-flash-image / gemini-3.1-flash-image-preview)
+    const response = await client.models.generateContent({
+      model: modelName,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType, data } },
+            { text: prompt },
+          ],
+        },
+      ],
+    });
 
-  const candidates = response.candidates ?? [];
-  for (const candidate of candidates) {
-    const parts = candidate.content?.parts ?? [];
-    for (const part of parts) {
-      const inline = (part as { inlineData?: { data?: string; mimeType?: string } }).inlineData;
-      if (inline?.data) {
-        return {
-          imageBase64: inline.data,
-          mimeType: inline.mimeType ?? "image/png",
-        };
+    const candidates = response.candidates ?? [];
+    for (const candidate of candidates) {
+      const parts = candidate.content?.parts ?? [];
+      for (const part of parts) {
+        const inline = (part as { inlineData?: { data?: string; mimeType?: string } }).inlineData;
+        if (inline?.data) {
+          return {
+            imageBase64: inline.data,
+            mimeType: inline.mimeType ?? "image/png",
+          };
+        }
       }
     }
   }
+
   throw new Error(
     "O Gemini não retornou uma imagem. Tente ajustar a legenda ou o prompt.",
   );

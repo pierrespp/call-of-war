@@ -851,10 +851,10 @@ async function startServer() {
     pushLog(room, `${unit.name} (${className}) moveu ${cost.toFixed(1)}m (${cellPath.length - 1} célula(s)).`);
 
     // Guard reactions
-    const enemies = Object.values(room.gameState.units).filter(
+    const guards = Object.values(room.gameState.units).filter(
       (u) => u.team !== unit.team && u.stance === "guard" && u.hp > 0,
     );
-    for (const guard of enemies) {
+    for (const guard of guards) {
       if (isInFOV(guard, unit, room)) {
         const exists = room.pendingGuardShots.some(
           (p) => p.guardUnitId === guard.id && p.targetUnitId === unit.id,
@@ -868,6 +868,27 @@ async function startServer() {
           };
           room.pendingGuardShots.push(pending);
           pushLog(room, `🛡️ ${guard.name} (Postura de Guarda) detectou ${unit.name}!`);
+        }
+      }
+      
+      if (guard.skills?.includes("Emboscada")) {
+        const otherEnemies = Object.values(room.gameState.units).filter(u => u.team === unit.team && u.hp > 0 && u.id !== unit.id);
+        for (const other of otherEnemies) {
+          if (isInFOV(guard, other, room)) {
+            const exists = room.pendingGuardShots.some(
+              (p) => p.guardUnitId === guard.id && p.targetUnitId === other.id,
+            );
+            if (!exists) {
+              const pending: PendingGuardShot = {
+                id: randomUUID(),
+                guardUnitId: guard.id,
+                targetUnitId: other.id,
+                guardTeam: guard.team as "A" | "B",
+              };
+              room.pendingGuardShots.push(pending);
+              pushLog(room, `🛡️ ${guard.name} (Emboscada) mantém a mira e detectou ${other.name}!`);
+            }
+          }
         }
       }
     }
@@ -1212,15 +1233,25 @@ async function startServer() {
     if (coverInfo.hasWall) {
       // Wall appeared between guard and target after the trigger — shot is wasted.
       pushLog(room, `${guard.name} tentou o tiro de guarda mas o caminho está bloqueado por parede.`);
-      guard.stance = "standing";
-      guard.guardWatchAngle = null;
+      if (guard.skills?.includes("Emboscada") && guard.ammoInMag > 0) {
+        pushLog(room, `🛡️ ${guard.name} possui Emboscada e mantém a Postura de Guarda apesar do bloqueio!`);
+      } else {
+        guard.stance = "standing";
+        guard.guardWatchAngle = null;
+      }
       return res.json({ success: true, gameState: room.gameState, cover: coverInfo });
     }
 
     guard.ammoInMag -= 1;
     performShot(room, guard, target, coverInfo.cover, distancePenalty ?? 0, true);
-    guard.stance = "standing";
-    guard.guardWatchAngle = null;
+    
+    if (guard.skills?.includes("Emboscada") && guard.ammoInMag > 0) {
+      pushLog(room, `🛡️ ${guard.name} possui Emboscada e mantém a Postura de Guarda!`);
+    } else {
+      guard.stance = "standing";
+      guard.guardWatchAngle = null;
+    }
+    
     res.json({ success: true, gameState: room.gameState, cover: coverInfo });
   });
 

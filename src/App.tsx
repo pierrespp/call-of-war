@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import { GameState, Unit, MapCoverData, CoverType, PendingGuardShot } from "./types/game";
 import { SCALE, CELL_SIZE, METERS_PER_CELL, ARMORS, WEAPONS, SKILLS, ATTACHMENTS, MAPS, CLASSES } from "./data/constants";
 import { cn } from "./lib/utils";
+import { getImageUrl } from "./lib/utils";
 import { Crosshair, Move, Shield, Heart, Activity, Info, X, Map as MapIcon, Copy, Check, LogOut, Users, UserPlus, RotateCcw, Zap, Eye, ChevronsDown } from "lucide-react";
 import { SoldiersInfoMenu } from "./components/SoldiersInfoMenu";
 import { CreateMatchMenu } from "./components/CreateMatchMenu";
@@ -1078,7 +1079,7 @@ export default function App() {
             ...(MAPS[gameState.mapId]
               ? {
                   backgroundColor: "#1a1a1a",
-                  backgroundImage: `url(${MAPS[gameState.mapId].imagePath})`,
+                  backgroundImage: `url("${getImageUrl(MAPS[gameState.mapId].imagePath)}")`,
                   backgroundRepeat: "no-repeat",
                   backgroundSize: "cover",
                   backgroundPosition: "0 0",
@@ -1267,7 +1268,7 @@ export default function App() {
 
                 <div
                   className="w-full h-full rounded-full bg-cover bg-center flex items-center justify-center overflow-hidden relative z-0"
-                  style={{ backgroundImage: `url('./roles/${CLASSES[unit.className]?.name.toLowerCase()}.png')`, boxShadow: "inset 0 0 10px rgba(0,0,0,0.5)" }}
+                  style={{ backgroundImage: `url("${getImageUrl('/roles/' + CLASSES[unit.className]?.name.toLowerCase() + '.png')}")`, boxShadow: "inset 0 0 10px rgba(0,0,0,0.5)" }}
                 >
                   {!["assalto", "suporte", "médico", "granadeiro", "sniper"].includes(CLASSES[unit.className]?.name.toLowerCase()) && (
                     <div className="text-[10px] font-bold text-white tracking-tighter drop-shadow-md">

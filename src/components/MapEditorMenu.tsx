@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { MAPS, CELL_SIZE, MapGridSettings, DEFAULT_GRID_SETTINGS } from "../data/constants";
 import { CoverType, MapCoverData } from "../types/game";
 import { validateDeployZones } from "../utils/pathfinding";
+import { getImageUrl } from "../lib/utils";
 import { Shield, ShieldAlert, ArrowLeft, Save, Eraser, Square, Droplet, Flag, Grid3x3, RotateCcw, DoorClosed, DoorOpen, AppWindow } from "lucide-react";
 
 interface BrushOption {
@@ -360,7 +361,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
               top: 0,
               width: mapW,
               height: mapH,
-              backgroundImage: `url(${mapInfo.imagePath})`,
+              backgroundImage: `url("${getImageUrl(mapInfo.imagePath)}")`,
               backgroundRepeat: "no-repeat",
               backgroundSize: "cover",
               backgroundPosition: "0 0",

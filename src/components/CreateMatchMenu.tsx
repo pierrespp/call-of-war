@@ -3,6 +3,7 @@ import { CLASSES, WEAPONS, ARMORS, ATTACHMENTS, SKILLS, MAPS } from "../data/con
 import { apiService, RoomStateResponse } from "../services/apiService";
 import { DraftUnit } from "../types/game";
 import { Check, X } from "lucide-react";
+import { getImageUrl } from "../lib/utils";
 
 const MAX_POINTS = 100;
 const MAX_UNITS = 9;
@@ -269,7 +270,7 @@ export function CreateMatchMenu({ roomId, playerToken, playerTeam, state, onBack
                       {Object.values(ATTACHMENTS).map(att => (
                         <label key={att.name} className="flex items-center gap-1 text-xs text-neutral-400 cursor-pointer">
                           <input type="checkbox" checked={u.attachments.includes(att.name)} onChange={() => toggleArrayItem(u.id, "attachments", att.name)} className="accent-indigo-500" />
-                          <span className="truncate" title={att.name}>{att.name} ({att.points})</span>
+                          <span className="truncate" title={att.description}>{att.name} ({att.points})</span>
                         </label>
                       ))}
                     </div>
@@ -277,12 +278,15 @@ export function CreateMatchMenu({ roomId, playerToken, playerTeam, state, onBack
                   <div className="pt-2">
                     <label className="text-neutral-500 text-xs block mb-1">Habilidades</label>
                     <div className="flex flex-col gap-1">
-                      {Object.values(SKILLS).filter(sk => sk.classRequired === CLASSES[u.className]?.name).map(sk => (
-                        <label key={sk.name} className="flex items-center gap-1 text-xs text-neutral-400 cursor-pointer">
-                          <input type="checkbox" checked={u.skills.includes(sk.name)} onChange={() => toggleArrayItem(u.id, "skills", sk.name)} className="accent-indigo-500" />
-                          <span title={sk.description}>{sk.name} ({sk.points})</span>
-                        </label>
-                      ))}
+                      {Object.values(SKILLS).filter(sk => sk.classRequired === CLASSES[u.className]?.name).map(sk => {
+                        const isSextoSentido = sk.name === "Sexto Sentido";
+                        return (
+                          <label key={sk.name} className={`flex items-center gap-1 text-xs ${isSextoSentido ? "text-neutral-600 opacity-50 cursor-not-allowed" : "text-neutral-400 cursor-pointer"}`}>
+                            <input type="checkbox" disabled={isSextoSentido} checked={isSextoSentido ? false : u.skills.includes(sk.name)} onChange={() => toggleArrayItem(u.id, "skills", sk.name)} className="accent-indigo-500" />
+                            <span title={sk.description}>{sk.name}{isSextoSentido ? " 🔒 Em breve" : ` (${sk.points})`}</span>
+                          </label>
+                        );
+                      })}
                       {Object.values(SKILLS).filter(sk => sk.classRequired === CLASSES[u.className]?.name).length === 0 && (
                         <span className="text-xs text-neutral-600 italic">Nenhuma disp.</span>
                       )}
@@ -312,7 +316,7 @@ export function CreateMatchMenu({ roomId, playerToken, playerTeam, state, onBack
                     <div key={u.id} className="flex gap-4 items-center bg-black/20 p-3 rounded-lg border border-neutral-800">
                       <div
                         className="w-12 h-12 bg-neutral-800 rounded flex items-center justify-center text-xl font-black text-neutral-600 bg-cover bg-center shrink-0"
-                        style={{ backgroundImage: `url('./roles/${CLASSES[u.className]?.name.toLowerCase()}.png')` }}
+                        style={{ backgroundImage: `url("${getImageUrl('/roles/' + CLASSES[u.className]?.name.toLowerCase() + '.png')}")` }}
                       >
                         {!["assalto","suporte","médico","granadeiro","sniper"].includes(CLASSES[u.className]?.name.toLowerCase()) &&
                           CLASSES[u.className]?.name.substring(0, 2).toUpperCase()}

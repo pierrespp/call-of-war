@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { CELL_SIZE } from "../data/constants";
 import { CoverType, MapCoverData, AIMapGenerationResult } from "../types/game";
+import { buildMapGenerationPrompt } from "../data/geminiPrompts";
 import {
   aiMapService,
   AIMapRateLimitError,
@@ -112,7 +113,7 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
   const [brush, setBrush] = useState<CoverType>("half");
   const [toolMode, setToolMode] = useState<ToolMode>("draw");
   const [userPrompt, setUserPrompt] = useState<string>("");
-  const [mapGenModel, setMapGenModel] = useState<string>("gemini-3.1-flash-image-preview");
+  const [mapGenModel, setMapGenModel] = useState<string>("imagen-3.0-generate-001");
 
   const [zoom, setZoom] = useState(0.4);
   const [camera, setCamera] = useState({ x: 0, y: 0 });
@@ -457,9 +458,13 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
               onChange={(e) => setMapGenModel(e.target.value)}
               className="w-full bg-neutral-900 border border-neutral-600 text-white rounded p-3 text-sm focus:outline-none focus:border-indigo-500"
             >
-              <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image Preview (Recomendado)</option>
-              <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Mais Rápido)</option>
+              <option value="imagen-3.0-generate-001">Imagen 3 (Totalmente Grátis - Ignora Legenda)</option>
+              <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Exige Chave Pro/Paga - Usa Legenda)</option>
+              <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image Preview (Alta Qualidade)</option>
             </select>
+            <p className="text-[10px] text-neutral-500 mt-1">
+              No Nível Gratuito da API, use o Imagen 3 ou Exporte a legenda para gerar em uma ferramenta avançada.
+            </p>
           </div>
 
           {/* Painted summary + clear */}
@@ -533,6 +538,32 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
                 <Sparkles size={18} /> Gerar Mapa
               </>
             )}
+          </button>
+          <button
+            onClick={() => {
+              const legendImage = buildLegendImage(coverData, gridWidth, gridHeight);
+              const generatedPrompt = buildMapGenerationPrompt({ gridWidth, gridHeight, userTheme: userPrompt });
+              const promptFileContent = `=== INSTRUÇÕES PARA GERAÇÃO MANUAL DE MAPA ===\n\n1. O gerador de imagens da IA gratuito (Imagen 3) não suporta imagens como base (Image-to-Image).\n2. Se você tem acesso ao Google AI Studio ou ChatGPT Plus/Midjourney, use o prompt abaixo enviando a imagem gerada (legend.png) como anexo/referência.\n\n=== PROMPT DE GERAÇÃO ===\n\n${generatedPrompt}`;
+              
+              // Download text file
+              const blobTxt = new Blob([promptFileContent], { type: "text/plain" });
+              const urlTxt = URL.createObjectURL(blobTxt);
+              const aTxt = document.createElement("a");
+              aTxt.href = urlTxt;
+              aTxt.download = "map_prompt.txt";
+              aTxt.click();
+              URL.revokeObjectURL(urlTxt);
+
+              // Download image file
+              const aImg = document.createElement("a");
+              aImg.href = legendImage;
+              aImg.download = "legend.png";
+              aImg.click();
+            }}
+            disabled={paintedCount === 0}
+            className="w-full flex items-center justify-center gap-2 bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors mt-2"
+          >
+            Exportar P/ Geração Manual
           </button>
           {!canGenerate && !isGenerating && paintedCount === 0 && (
             <p className="text-[11px] text-neutral-500 text-center mt-2">

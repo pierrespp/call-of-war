@@ -3,6 +3,7 @@ import { CELL_SIZE, MAPS, CLASSES } from "../data/constants";
 import { apiService, RoomStateResponse } from "../services/apiService";
 import { DeployZone, DraftUnit, MapCoverData } from "../types/game";
 import { Check, X, ArrowLeft } from "lucide-react";
+import { getImageUrl } from "../lib/utils";
 
 interface Props {
   roomId: string;
@@ -261,7 +262,7 @@ export function DeployScreen({ roomId, playerToken, playerTeam, state, onLeave }
             width: mapInfo.gridWidth * CELL_SIZE,
             height: mapInfo.gridHeight * CELL_SIZE,
             backgroundColor: "#1a1a1a",
-            backgroundImage: `url(${mapInfo.imagePath})`,
+            backgroundImage: `url("${getImageUrl(mapInfo.imagePath)}")`,
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "0 0",
