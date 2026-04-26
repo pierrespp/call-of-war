@@ -11,12 +11,13 @@ import { CreateMatchMenu } from "./components/CreateMatchMenu";
 import { MapEditorMenu } from "./components/MapEditorMenu";
 import { AIMapCreatorMenu } from "./components/AIMapCreatorMenu";
 import { DeployScreen } from "./components/DeployScreen";
+import { AdminPanel } from "./components/AdminPanel";
 import { FOVOverlay } from "./components/FOVOverlay";
 import { apiService, RoomStateResponse } from "./services/apiService";
 import { computeReachable, reconstructPath, pathCostMeters, ReachableCell, PathStep } from "./utils/pathfinding";
 import { computeShotCover } from "./utils/cover";
 
-type AppState = "login" | "lobby" | "createMatch" | "deploy" | "waiting" | "battle" | "soldiers" | "editor" | "aiMapCreator";
+type AppState = "login" | "lobby" | "createMatch" | "deploy" | "waiting" | "battle" | "soldiers" | "editor" | "aiMapCreator" | "admin";
 
 export default function App() {
   const { getMapImage, getRoleImage } = useImages();
@@ -935,6 +936,11 @@ export default function App() {
                 Gerador de Mapa
               </button>
             </div>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => setAppState("admin")} className="text-[10px] text-neutral-600 hover:text-neutral-400 py-1 transition-colors uppercase tracking-widest">
+                Painel Admin
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -944,6 +950,7 @@ export default function App() {
   if (appState === "soldiers") return <SoldiersInfoMenu onBack={() => setAppState("lobby")} />;
   if (appState === "editor") return <MapEditorMenu onBack={() => setAppState("lobby")} />;
   if (appState === "aiMapCreator") return <AIMapCreatorMenu onBack={() => setAppState("lobby")} />;
+  if (appState === "admin") return <AdminPanel onClose={() => setAppState("lobby")} />;
 
   const SandboxToggle = () => {
     if (!sandboxTokens || !playerTeam) return null;

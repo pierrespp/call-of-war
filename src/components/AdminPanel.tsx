@@ -2,12 +2,56 @@ import { useState } from 'react';
 import { ImageUploadManager } from './ImageUploadManager';
 import { migrateImagesToFirebase, checkFirebaseImages } from '../utils/migrateImages';
 import { useImages } from '../contexts/ImageContext';
+import { useMaps } from '../contexts/MapContext';
 
 export const AdminPanel = ({ onClose }: { onClose: () => void }) => {
   const [migrating, setMigrating] = useState(false);
   const [checking, setChecking] = useState(false);
   const [status, setStatus] = useState<string>('');
   const { refreshImages } = useImages();
+  const { refreshMaps } = useMaps();
+
+  // Map Registration State
+  const [mapId, setMapId] = useState('');
+  const [mapName, setMapName] = useState('');
+  const [gridWidth, setGridWidth] = useState(40);
+  const [gridHeight, setGridHeight] = useState(40);
+  const [mapImagePath, setMapImagePath] = useState('');
+  const [registeringMap, setRegisteringMap] = useState(false);
+
+  const handleRegisterMap = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mapId || !mapName || !mapImagePath) {
+      alert('Preencha os campos obrigatórios (ID, Nome e Caminho da Imagem)');
+      return;
+    }
+    setRegisteringMap(true);
+    try {
+      const resp = await fetch('/api/ai-maps/register-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: mapId.toLowerCase().replace(/\s+/g, '_'),
+          name: mapName,
+          imagePath: mapImagePath,
+          gridWidth,
+          gridHeight,
+          coverData: {}
+        }),
+      });
+      if (!resp.ok) throw new Error('Erro ao salvar mapa');
+      alert('✓ Mapa registrado com sucesso!');
+      await refreshMaps();
+      // Clear fields
+      setMapId('');
+      setMapName('');
+      setMapImagePath('');
+    } catch (err) {
+      alert('Erro: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+    } finally {
+      setRegisteringMap(false);
+    }
+  };
 
   const handleMigrate = async () => {
     setMigrating(true);
@@ -90,9 +134,78 @@ export const AdminPanel = ({ onClose }: { onClose: () => void }) => {
           <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-6">
             <h3 className="text-xl font-bold text-neutral-200 mb-4">Upload Manual</h3>
             <p className="text-neutral-400 text-sm mb-4">
-              Faça upload de novas imagens ou substitua imagens existentes.
+              Faça upload de novas imagens (Roles, Mapas ou Tokens).<br/>
+              <i>Dica: Após o upload de um mapa, copie a URL gerada para usá-la no registro abaixo.</i>
             </p>
             <ImageUploadManager />
+          </div>
+
+          <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-6">
+            <h3 className="text-xl font-bold text-neutral-200 mb-4">Registrar Novo Mapa</h3>
+            <p className="text-neutral-400 text-sm mb-4">
+              Crie uma entrada de mapa jogável ligada a uma imagem (URL do Firebase ou caminho local).
+            </p>
+            <form onSubmit={handleRegisterMap} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">ID do Mapa (slug)</label>
+                  <input
+                    type="text"
+                    value={mapId}
+                    onChange={e => setMapId(e.target.value)}
+                    placeholder="ex: desert_storm"
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded px-3 py-2 text-white outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Nome de Exibição</label>
+                  <input
+                    type="text"
+                    value={mapName}
+                    onChange={e => setMapName(e.target.value)}
+                    placeholder="ex: Tempestade no Deserto"
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded px-3 py-2 text-white outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">URL da Imagem / Caminho</label>
+                <input
+                  type="text"
+                  value={mapImagePath}
+                  onChange={e => setMapImagePath(e.target.value)}
+                  placeholder="https://firebasestorage... ou /maps/meu_mapa.jpg"
+                  className="w-full bg-neutral-900 border border-neutral-700 rounded px-3 py-2 text-white outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Largura (Grades)</label>
+                  <input
+                    type="number"
+                    value={gridWidth}
+                    onChange={e => setGridWidth(parseInt(e.target.value))}
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded px-3 py-2 text-white outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Altura (Grades)</label>
+                  <input
+                    type="number"
+                    value={gridHeight}
+                    onChange={e => setGridHeight(parseInt(e.target.value))}
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded px-3 py-2 text-white outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={registeringMap}
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-neutral-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                {registeringMap ? 'Registrando...' : 'Registrar Mapa'}
+              </button>
+            </form>
           </div>
 
           <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-6">

@@ -5,6 +5,8 @@ import { DraftUnit } from "../types/game";
 import { Check, X, Save, Download, Trash2, Shield } from "lucide-react";
 import { getImageUrl } from "../lib/utils";
 
+import { useMaps } from "../contexts/MapContext";
+
 const MAX_POINTS = 100;
 const MAX_UNITS = 9;
 
@@ -17,6 +19,7 @@ interface Props {
 }
 
 export function CreateMatchMenu({ roomId, playerToken, playerTeam, state, onBack }: Props) {
+  const { maps } = useMaps();
   const teamFaction: "USA" | "TR" = playerTeam === "A" ? "USA" : "TR";
   const [units, setUnits] = useState<DraftUnit[]>([]);
   const [selectedMap, setSelectedMap] = useState("cidade_ruinas");
@@ -240,11 +243,11 @@ export function CreateMatchMenu({ roomId, playerToken, playerTeam, state, onBack
               onChange={e => handleMapChange(e.target.value)}
               disabled={savingMap}
             >
-              {Object.values(MAPS).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              {Object.values(maps).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           ) : (
             <span className="bg-neutral-900 border border-neutral-700 px-3 py-1.5 rounded text-neutral-300">
-              {MAPS[selectedMap]?.name || selectedMap} <span className="text-xs text-neutral-500">(escolhido pelo Jogador A)</span>
+              {maps[selectedMap]?.name || selectedMap} <span className="text-xs text-neutral-500">(escolhido pelo Jogador A)</span>
             </span>
           )}
         </div>

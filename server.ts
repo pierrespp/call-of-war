@@ -68,11 +68,28 @@ async function loadGlobalCoverData(): Promise<Record<string, Record<string, stri
 }
 
 async function saveMapCover(mapId: string, data: Record<string, string>) {
-  // Save to Firestore
+  // Update global cache
+  globalCoverData[mapId] = data;
+
+  // Save to Firestore (specific cover collection)
   try {
     await setDoc(doc(db, "map-covers", mapId), data);
   } catch (err) {
     console.error(`⚠️ Falha ao salvar cobertura no Firestore (${mapId}):`, err);
+  }
+
+  // If it's an AI map, also update its metadata record to keep them in sync
+  if (mapId.startsWith("ai_")) {
+    try {
+      const records = await loadAIMapRecords();
+      const record = records.find(r => r.id === mapId);
+      if (record) {
+        record.coverData = data;
+        await persistAIMapRecord(record);
+      }
+    } catch (err) {
+      console.error(`⚠️ Falha ao sincronizar registro de metadados do mapa IA (${mapId}):`, err);
+    }
   }
 
   if (!pgPool) return;
@@ -85,7 +102,7 @@ async function saveMapCover(mapId: string, data: Record<string, string>) {
       [mapId, JSON.stringify(data)]
     );
   } catch (err) {
-    console.error(`⚠️ Falha ao salvar cobertura do mapa ${mapId}:`, err);
+    console.error(`⚠️ Falha ao salvar cobertura do mapa ${mapId} no Postgres:`, err);
   }
 }
 
@@ -525,6 +542,10 @@ async function loadAIMapsIntoRuntime() {
       gridWidth: m.gridWidth,
       gridHeight: m.gridHeight,
     };
+    // Sync cover data from the metadata record if not already loaded into globalCoverData
+    if (m.coverData && !globalCoverData[m.id]) {
+      globalCoverData[m.id] = m.coverData;
+    }
   }
   if (maps.length > 0) {
     console.log(`🗺️ Mapas IA carregados para o runtime: ${maps.length} mapa(s).`);
@@ -1592,6 +1613,57 @@ async function startServer() {
       console.error("⚠️ Falha ao salvar mapa IA:", err);
       const message = err instanceof Error ? err.message : "Erro desconhecido ao salvar mapa.";
       res.status(500).json({ error: message });
+    }
+  });
+
+  /** Manual registration of a map with an existing image URL or path. */
+  app.post("/api/ai-maps/register-manual", async (req, res) => {
+    const { id, name, imagePath, gridWidth, gridHeight, coverData } = req.body as {
+      id: string;
+      name: string;
+      imagePath: string;
+      gridWidth: number;
+      gridHeight: number;
+      coverData?: Record<string, string>;
+    };
+
+    if (!id || !name || !imagePath) {
+      return res.status(400).json({ error: "Campos obrigatórios ausentes (id, name, imagePath)." });
+    }
+
+    const mapId = id.startsWith("ai_") ? id : `ai_manual_${id}`;
+    
+    const record: AIMapRecord = {
+      id: mapId,
+      name,
+      imagePath,
+      gridWidth: gridWidth || 40,
+      gridHeight: gridHeight || 40,
+      coverData: coverData || {},
+      createdAt: Date.now(),
+    };
+
+    try {
+      await persistAIMapRecord(record);
+      
+      // Update runtime
+      MAPS[mapId] = {
+        id: mapId,
+        name: record.name,
+        imagePath: record.imagePath,
+        gridWidth: record.gridWidth,
+        gridHeight: record.gridHeight,
+      };
+
+      if (record.coverData) {
+        await saveMapCover(mapId, record.coverData);
+      }
+
+      console.log(`🗺️ Mapa registrado manualmente: "${record.name}" (${mapId})`);
+      res.json({ success: true, mapId });
+    } catch (err) {
+      console.error("⚠️ Falha ao registrar mapa manual:", err);
+      res.status(500).json({ error: "Erro ao persistir registro de mapa." });
     }
   });
 
