@@ -52,7 +52,16 @@ export const useFirebaseImages = () => {
 
   const getMapImage = (mapName: string): string => {
     const key = mapName.toLowerCase();
-    return mapImages[key] || (MAPS[mapName] ? getImageUrl(MAPS[mapName].imagePath) : getImageUrl(`/maps/${key}.jpg`));
+    // Prioritize maps from Firestore 'tokens' collection
+    if (mapImages[key]) return mapImages[key];
+    
+    // Check if it's a known map in the static MAPS constant (which might include AI maps synced to state elsewhere)
+    if (MAPS[mapName]) {
+      return getImageUrl(MAPS[mapName].imagePath);
+    }
+
+    // Default fallback to local maps folder, now with .png as first guess for default maps
+    return getImageUrl(`/maps/${key}.png`);
   };
 
   return {

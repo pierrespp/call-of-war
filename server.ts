@@ -406,7 +406,7 @@ function buildBattleUnits(room: Room): Record<string, Unit> {
   return out;
 }
 
-// ── AI Maps — persistent metadata (data/ai-maps.json) ───────────────────────
+// ── AI Maps — persistent metadata (only from Firestore) ───────────────────────
 
 interface AIMapRecord {
   id: string;
@@ -418,20 +418,11 @@ interface AIMapRecord {
   createdAt: number;
 }
 
-const AI_MAPS_FILE = path.join(__dirname, "data", "ai-maps.json");
-
 async function loadAIMapRecords(): Promise<AIMapRecord[]> {
   try {
     const col = collection(db, "ai-maps");
     const snap = await getDocs(col);
-    const records = snap.docs.map(d => ({ ...d.data(), id: d.id } as AIMapRecord));
-    if (records.length === 0) {
-      try {
-        const raw = fs.readFileSync(AI_MAPS_FILE, "utf-8");
-        return JSON.parse(raw) as AIMapRecord[];
-      } catch { return []; }
-    }
-    return records;
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as AIMapRecord));
   } catch (err) {
     console.error("⚠️ Falha ao ler ai-maps do Firestore:", err);
     return [];
@@ -463,8 +454,6 @@ interface AIMapDraft {
   userPrompt: string;
   updatedAt: number;
 }
-
-const AI_MAPS_DRAFTS_FILE = path.join(__dirname, "data", "ai-maps-drafts.json");
 
 async function loadAIMapDrafts(): Promise<AIMapDraft[]> {
   try {
@@ -535,6 +524,7 @@ async function deleteFromFirebaseStorage(imageUrl: string): Promise<void> {
 async function loadAIMapsIntoRuntime() {
   const maps = await loadAIMapRecords();
   for (const m of maps) {
+    // Override or add to runtime MAPS object
     MAPS[m.id] = {
       id: m.id,
       name: m.name,
@@ -543,26 +533,30 @@ async function loadAIMapsIntoRuntime() {
       gridHeight: m.gridHeight,
     };
     // Sync cover data from the metadata record if not already loaded into globalCoverData
-    if (m.coverData && !globalCoverData[m.id]) {
+    if (m.coverData) {
       globalCoverData[m.id] = m.coverData;
     }
   }
   if (maps.length > 0) {
-    console.log(`🗺️ Mapas IA carregados para o runtime: ${maps.length} mapa(s).`);
+    console.log(`🗺️ Mapas persistentes carregados/sincronizados: ${maps.length} mapa(s).`);
   }
 }
 
 async function startServer() {
   // Initialize persistent data before starting the server
   try {
+    // 1. Load basic global data
     const [covers, settings] = await Promise.all([
       loadGlobalCoverData(),
-      loadGlobalGridSettings(),
-      loadAIMapsIntoRuntime()
+      loadGlobalGridSettings()
     ]);
     Object.assign(globalCoverData, covers);
     Object.assign(globalGridSettings, settings);
-    console.log("✅ Dados globais (coberturas, grid, mapas IA) sincronizados com Firestore.");
+
+    // 2. Load AI maps and sync their specific covers (this might override basic covers)
+    await loadAIMapsIntoRuntime();
+    
+    console.log("✅ Dados globais sincronizados com Firestore.");
   } catch (err) {
     console.error("❌ Falha crítica ao sincronizar dados iniciais:", err);
   }
@@ -1092,6 +1086,13 @@ async function startServer() {
 
     const roll = Math.floor(Math.random() * 100) + 1;
     let hit = roll <= hitRate;
+
+    // Trigger Sexto Sentido on miss from back
+    if (!hit && target.skills?.includes("Sexto Sentido") && isFromBack) {
+      target.extraMoveMeters = (target.extraMoveMeters || 0) + 1.5;
+      pushLog(room, `🛡️ Sexto Sentido: ${target.name} esquivou do tiro pelas costas e ganhou +1.5m (3cm) de movimento livre!`);
+    }
+
     const attackerClassName = CLASSES[attacker.className]?.name || attacker.className;
     const targetClassName = CLASSES[target.className]?.name || target.className;
 
@@ -1532,6 +1533,13 @@ async function startServer() {
     const { draftId } = req.params;
     await deleteAIMapDraftFromDB(draftId);
     res.json({ success: true });
+  });
+
+  // ── Maps — unified listing ──────────────────────────────────────────────
+  
+  /** List ALL maps (defaults + dynamic ones from DB). */
+  app.get("/api/maps/all", (_req, res) => {
+    res.json(Object.values(MAPS));
   });
 
   // ── AI Maps — save / list / delete ──────────────────────────────────────
