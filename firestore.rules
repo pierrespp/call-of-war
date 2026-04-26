@@ -31,21 +31,18 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
-    // Map Covers & Settings: Public read, authenticated write
+    // Map Covers & Settings: Public read and write for development
     match /map-covers/{mapId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read, write: if true;
     }
     
     match /map-grid-settings/{mapId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read, write: if true;
     }
 
-    // Tokens collection (from storageService)
+    // Tokens collection: Public read and write for development
     match /tokens/{tokenId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read, write: if true;
     }
   }
 }

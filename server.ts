@@ -1073,6 +1073,12 @@ async function startServer() {
       }
     }
 
+    // Check if it's from the back for "Sexto Sentido"
+    const targetRot = target.rotation ?? 0;
+    const angToAttacker = angleDegBetween(target.x, target.y, attacker.x, attacker.y);
+    const backDiff = Math.abs(normalizeAngle(angToAttacker - targetRot));
+    const isFromBack = backDiff > 135; // Back 90 degree cone (180 +/- 45)
+
     let hitRate = CLASSES[attacker.className]?.hit ?? 60;
     hitRate += attHitBonus;
     if (distancePenalty) hitRate -= distancePenalty;
@@ -1116,6 +1122,13 @@ async function startServer() {
       if (target.hp <= 0) { pushLog(room, `☠️ ${target.name} (${targetClassName}) foi eliminado!`); delete room.gameState.units[target.id]; checkWinner(room); }
     } else {
       pushLog(room, `[ERRO] ${attacker.name} (${attackerClassName}) errou o tiro em ${target.name} (${targetClassName}). (Hit ${roll}/${hitRate}%)`);
+      
+      // Sexto Sentido Trigger
+      if (isFromBack && target.skills && target.skills.includes("Sexto Sentido")) {
+        target.extraMoveMeters += 3; // 3 meters free move (2 cells approximately)
+        target.actions.move = true;   // Grant move action if it was used
+        pushLog(room, `⚡ Sexto Sentido: ${target.name} sentiu o perigo pelas costas, o inimigo errou e ele ganhou 3m de movimento livre!`);
+      }
     }
     return { ok: true };
   }

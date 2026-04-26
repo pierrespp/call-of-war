@@ -92,7 +92,7 @@ export const ATTACHMENTS: Record<string, Attachment> = {
 
 export const SKILLS: Record<string, Skill> = {
   'Linha de Frente': { name: 'Linha de Frente', classRequired: 'Assalto', points: 1, description: 'Atirar em qualquer ponto do movimento.' },
-  'Sexto Sentido': { name: 'Sexto Sentido', classRequired: 'Assalto', points: 1, description: 'Desativado: Anula a Surpresa de ataques recebidos fora do seu campo de visão.' },
+  'Sexto Sentido': { name: 'Sexto Sentido', classRequired: 'Assalto', points: 1, description: 'Quando atirado pelas costas e o inimigo errar, move-se 3m como ação livre.' },
   'Emboscada': { name: 'Emboscada', classRequired: 'Suporte', points: 3, description: 'Na Guarda, atirar em CADA inimigo que entrar no FOV.' },
   'Médico de Combate': { name: 'Médico de Combate', classRequired: 'Médico', points: 1, description: '+2 cura por kit.' },
   'Disparo Compensado': { name: 'Disparo Compensado', classRequired: 'Sniper', points: 1, description: '+10m alcance do rifle.' },
