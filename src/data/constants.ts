@@ -128,8 +128,8 @@ export const DEFAULT_GRID_SETTINGS: MapGridSettings = {
 };
 
 export const MAPS: Record<string, GameMap> = {
-  'cidade_ruinas': { id: 'cidade_ruinas', name: 'Cidade em Ruínas', imagePath: '/maps/cidade_ruinas.png', gridWidth: 40, gridHeight: 40 },
-  'selva_rio': { id: 'selva_rio', name: 'Selva com Rio', imagePath: '/maps/selva_rio.png', gridWidth: 40, gridHeight: 40 },
-  'acampamento': { id: 'acampamento', name: 'Acampamento na Floresta', imagePath: '/maps/acampamento.png', gridWidth: 40, gridHeight: 40 },
+  'cidade_ruinas': { id: 'cidade_ruinas', name: 'Cidade em Ruínas', imagePath: '/maps/cidade_ruinas.jpg', gridWidth: 40, gridHeight: 40 },
+  'selva_rio': { id: 'selva_rio', name: 'Selva com Rio', imagePath: '/maps/selva_rio.jpg', gridWidth: 40, gridHeight: 40 },
+  'acampamento': { id: 'acampamento', name: 'Acampamento na Floresta', imagePath: '/maps/acampamento.jpg', gridWidth: 40, gridHeight: 40 },
 };
 

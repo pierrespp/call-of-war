@@ -5,9 +5,8 @@ import { CoverType, MapCoverData, AIMapGenerationResult } from "../types/game";
 import { buildMapGenerationPrompt } from "../data/geminiPrompts";
 import {
   aiMapService,
-  AIMapRateLimitError,
 } from "../services/aiMapService";
-import type { AIMapSaveRequest } from "../services/aiMapService";
+import type { AIMapSaveRequest, AIMapDraft } from "../services/aiMapService";
 import {
   Shield,
   ShieldAlert,
@@ -31,18 +30,8 @@ import {
   AppWindow,
 } from "lucide-react";
 
-/**
- * AI Map Creator — generates a tactical map from a painted legend.
- *
- * Flow:
- *   1. User paints the legend on a blank grid (walls / covers / water /
- *      deploy zones).
- *   2. We rasterise that legend to a PNG using the SAME colour palette the
- *      Gemini prompt describes, then POST it to `/api/ai-maps/generate`.
- *   3. The server returns the generated image + cover detected per cell.
- *   4. A modal shows the preview with a toggleable cover overlay so the user
- *      can decide whether to keep it (Etapa 8: save) or generate again.
- */
+// NOTE: This component has been modified to remove AI generation features.
+// It now functions as a manual map editor and legend painter.
 
 interface BrushOption {
   id: CoverType;
@@ -57,9 +46,6 @@ interface BrushOption {
   legendColor: string;
 }
 
-// The legendColor values match the colour names used in the Gemini prompt
-// (`buildLegendPrompt` in geminiService.ts) so the AI interprets each region
-// correctly: cinza/vermelho/amarelo/azul/verde/laranja/branco.
 const BRUSHES: BrushOption[] = [
   { id: "none",    label: "Vazio",           short: "Vazio",   bg: "transparent",            border: "rgba(115,115,115,0.4)", textColor: "text-neutral-300", Icon: Eraser,      description: "Apaga marcação da célula.",                          legendColor: "#ffffff" },
   { id: "half",    label: "Meia Cobertura",  short: "Meia",    bg: "rgba(234,179,8,0.25)",   border: "rgba(234,179,8,0.7)",   textColor: "text-yellow-200",  Icon: Shield,      description: "Paredes baixas, carros (-20% de hit).",              legendColor: "#f5c518" },
@@ -76,9 +62,6 @@ const BRUSHES: BrushOption[] = [
 type ToolMode = "draw" | "pan";
 
 const GRID_SIZE_OPTIONS = [30, 40, 50] as const;
-const RATE_LIMIT_MAX = 8;
-const STATUS_POLL_MS = 5_000;
-/** Pixel size of each cell in the offscreen legend canvas sent to Gemini. */
 const LEGEND_CELL_PX = 50;
 
 /** Build a PNG image of the painted legend, base64-encoded with data-URI prefix. */
@@ -92,7 +75,6 @@ function buildLegendImage(
   canvas.height = gridHeight * LEGEND_CELL_PX;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D não disponível neste navegador.");
-  // Background = empty floor.
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   for (const [key, type] of Object.entries(coverData)) {
@@ -114,23 +96,14 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
   const [brush, setBrush] = useState<CoverType>("half");
   const [toolMode, setToolMode] = useState<ToolMode>("draw");
   const [userPrompt, setUserPrompt] = useState<string>("");
-  const [mapGenModel, setMapGenModel] = useState<string>("gemini-2.5-flash-image");
 
   const [zoom, setZoom] = useState(0.4);
   const [camera, setCamera] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const [rateLimitUsed, setRateLimitUsed] = useState<number>(0);
-  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number>(0);
-  const [isConfigured, setIsConfigured] = useState<boolean>(true);
-
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationStartTime, setGenerationStartTime] = useState<number>(0);
-  const [generationElapsedSeconds, setGenerationElapsedSeconds] = useState<number>(0);
   const [generationResult, setGenerationResult] =
     useState<AIMapGenerationResult | null>(null);
-  const [generationError, setGenerationError] = useState<string | null>(null);
   const [showCoverOverlay, setShowCoverOverlay] = useState(true);
 
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -152,37 +125,6 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
   const paintedCount = Object.values(coverData).filter(
     (v) => v && v !== "none",
   ).length;
-  const canGenerate =
-    paintedCount > 0 && !isGenerating && retryAfterSeconds === 0 && isConfigured;
-
-  // Poll rate-limit status every few seconds so the counter stays fresh even
-  // if other users (none today, but future-proof) consume slots.
-  const refreshStatus = useCallback(async () => {
-    try {
-      const status = await aiMapService.getStatus();
-      setRateLimitUsed(status.used);
-      setRetryAfterSeconds(status.retryAfterSeconds);
-      setIsConfigured(status.configured);
-    } catch {
-      // Network blip — keep the previous counter, don't spam errors.
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshStatus();
-    const id = setInterval(refreshStatus, STATUS_POLL_MS);
-    return () => clearInterval(id);
-  }, [refreshStatus]);
-
-  // Timer for generation progress feedback
-  useEffect(() => {
-    if (!isGenerating) return;
-    const id = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - generationStartTime) / 1000);
-      setGenerationElapsedSeconds(elapsed);
-    }, 1000);
-    return () => clearInterval(id);
-  }, [isGenerating, generationStartTime]);
 
   const setGridSize = (size: number) => {
     setGridWidth(size);
@@ -234,72 +176,11 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
     if (isDragging && toolMode === "draw") paintCell(e);
   };
 
-  const handleGenerate = async () => {
-    if (!canGenerate) return;
-    setGenerationError(null);
-    setGenerationResult(null);
-    setIsGenerating(true);
-    setGenerationStartTime(Date.now());
-    setGenerationElapsedSeconds(0);
-    try {
-      let legendImage = buildLegendImage(coverData, gridWidth, gridHeight);
-      
-      // Compress legend image before generating to avoid 413
-      try {
-        legendImage = await compressBase64Image(legendImage, 1024, 0.7);
-      } catch (ce) {
-        console.warn("Falha ao comprimir legenda:", ce);
-      }
-
-      const result = await aiMapService.generate({
-        legendImage,
-        userPrompt,
-        gridWidth,
-        gridHeight,
-        mapGenModel,
-      });
-      setGenerationResult(result);
-      setShowCoverOverlay(true);
-    } catch (err) {
-      if (err instanceof AIMapRateLimitError) {
-        setGenerationError(
-          `Limite de requisições atingido. Aguarde ${err.retryAfterSeconds} segundos antes de tentar novamente.`,
-        );
-        setRetryAfterSeconds(err.retryAfterSeconds);
-      } else if (err instanceof Error) {
-        // More detailed error messages
-        if (err.message.includes("network") || err.message.includes("fetch")) {
-          setGenerationError("Erro de conexão. Verifique sua internet e tente novamente.");
-        } else if (err.message.includes("timeout")) {
-          setGenerationError("A geração demorou muito. Tente simplificar a legenda ou tente novamente.");
-        } else if (err.message.includes("não retornou uma imagem")) {
-          setGenerationError("O Gemini não conseguiu gerar uma imagem. Tente ajustar a legenda ou o tema.");
-        } else {
-          setGenerationError(`Erro: ${err.message}`);
-        }
-      } else {
-        setGenerationError("Falha desconhecida ao gerar o mapa. Tente novamente.");
-      }
-    } finally {
-      setIsGenerating(false);
-      // Always refresh the counter so the "X/8" reflects this attempt.
-      refreshStatus();
-    }
-  };
-
   const handleCloseModal = () => {
     setGenerationResult(null);
-    setGenerationError(null);
   };
 
-  const handleRegenerate = () => {
-    setGenerationResult(null);
-    setGenerationError(null);
-    // Tiny delay so the modal closes before the loading state appears.
-    setTimeout(() => handleGenerate(), 50);
-  };
-
-  const handleSaveDraft = () => {
+  const handleSaveMap = () => {
     setSaveMapName("");
     setSaveError(null);
     setSavedMapId(null);
@@ -312,7 +193,6 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
     setSaveError(null);
 
     let finalImage = generationResult.generatedImage;
-    // Compress generated image to avoid 413 error on /save
     try {
       finalImage = await compressBase64Image(finalImage, 2048, 0.8);
     } catch (ce) {
@@ -322,12 +202,14 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
     const request: AIMapSaveRequest = {
       name: saveMapName.trim(),
       imageBase64: finalImage,
-      mimeType: "image/jpeg", // Converted to jpeg by compressor
+      mimeType: "image/jpeg",
       coverData: generationResult.detectedCover,
       gridWidth,
       gridHeight,
     };
     try {
+      // NOTE: aiMapService.save is now a stub. This needs a real implementation
+      // if map saving is to be restored. For now, it will fail gracefully.
       const result = await aiMapService.save(request);
       setSavedMapId(result.mapId);
     } catch (err) {
@@ -357,9 +239,9 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
         gridWidth,
         gridHeight,
         coverData,
-        userPrompt,
+        userPrompt: "", // User prompt is removed
       });
-      alert("Rascunho salvo com sucesso no servidor!");
+      alert("Rascunho salvo com sucesso!");
       setShowSaveDraftDialog(false);
     } catch (e) {
       alert("Erro ao salvar rascunho: " + (e instanceof Error ? e.message : "desconhecido"));
@@ -370,24 +252,22 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // We already have coverData mapped from the painted legend!
     const reader = new FileReader();
     reader.onload = (event) => {
       const dataUri = event.target?.result as string;
-      // Extract base64
       const [prefix, base64] = dataUri.split(',');
       const mime = prefix.split(':')[1].split(';')[0];
       
       setGenerationResult({
         generatedImage: base64,
         mimeType: mime,
-        detectedCover: coverData, // USE EXISTING PAINTED LEGEND!
+        detectedCover: coverData,
       });
       setShowCoverOverlay(true);
     };
     reader.readAsDataURL(file);
     
-    e.target.value = ""; // reset
+    e.target.value = "";
   };
 
   const canvasCursor = toolMode === "draw" ? "cursor-crosshair" : "cursor-move";
@@ -405,11 +285,10 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
             <ArrowLeft size={16} /> Voltar ao Menu
           </button>
           <h2 className="text-2xl font-black mb-2 flex items-center gap-2">
-            <Sparkles size={22} className="text-indigo-400" /> Gerador de Mapa
+            <Sparkles size={22} className="text-indigo-400" /> Editor de Mapa
           </h2>
           <p className="text-neutral-500 text-sm">
-            Pinte a legenda do terreno, escreva o tema e deixe a IA gerar uma
-            imagem realista do mapa.
+            Pinte o layout do terreno e exporte para usar em seu jogo.
           </p>
         </div>
 
@@ -495,41 +374,6 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
             </div>
           )}
 
-          {/* Prompt */}
-          <div>
-            <label className="block text-sm text-neutral-400 font-bold mb-2 uppercase tracking-wider">
-              Tema do Mapa
-            </label>
-            <textarea
-              value={userPrompt}
-              onChange={(e) => setUserPrompt(e.target.value)}
-              placeholder="Ex: cidade urbana destruída, prédios em ruínas com fumaça."
-              rows={4}
-              className="w-full bg-neutral-900 border border-neutral-600 text-white rounded p-3 text-sm focus:outline-none focus:border-indigo-500 resize-none"
-            />
-            <p className="text-[10px] text-neutral-500 mt-1">
-              Texto opcional que ajuda a IA a entender o cenário.
-            </p>
-          </div>
-
-          {/* Map Gen Model Selection */}
-          <div>
-            <label className="block text-sm text-neutral-400 font-bold mb-2 uppercase tracking-wider">
-              Modelo de Geração
-            </label>
-            <select
-              value={mapGenModel}
-              onChange={(e) => setMapGenModel(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-600 text-white rounded p-3 text-sm focus:outline-none focus:border-indigo-500"
-            >
-              <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Recomendado - Usa Legenda)</option>
-              <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image Preview (Alta Qualidade)</option>
-            </select>
-            <p className="text-[10px] text-neutral-500 mt-1">
-              No Nível Gratuito da API, use o Imagen 3 ou Exporte a legenda para gerar em uma ferramenta avançada.
-            </p>
-          </div>
-
           {/* Painted summary + clear */}
           <div className="bg-neutral-900 rounded-xl p-4 border border-neutral-700 space-y-2">
             <h3 className="font-bold text-sm text-neutral-300 uppercase tracking-widest border-b border-neutral-800 pb-2 mb-2 flex items-center justify-between">
@@ -547,68 +391,16 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
               <span className="text-neutral-400">Células pintadas:</span>
               <span className="font-mono text-neutral-200">{paintedCount}</span>
             </div>
-            <div className="text-xs flex justify-between">
-              <span className="text-neutral-400">Gerações neste minuto:</span>
-              <span
-                className={`font-mono ${rateLimitUsed >= RATE_LIMIT_MAX ? "text-red-400" : "text-neutral-200"}`}
-              >
-                {rateLimitUsed}/{RATE_LIMIT_MAX}
-              </span>
-            </div>
-            {retryAfterSeconds > 0 && (
-              <div className="text-xs text-amber-400 text-center pt-1">
-                Aguarde {retryAfterSeconds}s pra próxima geração.
-              </div>
-            )}
-            {!isConfigured && (
-              <div className="text-xs text-red-400 text-center pt-1">
-                GEMINI_API_KEY não configurada no servidor.
-              </div>
-            )}
           </div>
-
-          {generationError && (
-            <div className="bg-red-900/40 border border-red-700 rounded-lg p-3 space-y-2 animate-in fade-in duration-200">
-              <div className="flex items-start gap-2">
-                <X size={14} className="text-red-400 mt-0.5 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-red-200 text-xs font-semibold mb-1">Erro na geração</p>
-                  <p className="text-red-300 text-xs leading-relaxed">{generationError}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setGenerationError(null)}
-                className="w-full text-[10px] text-red-400 hover:text-red-300 transition-colors text-center"
-              >
-                Dispensar
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="p-6 border-t border-neutral-700 bg-neutral-800">
           <button
-            onClick={handleGenerate}
-            disabled={!canGenerate}
-            className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 size={18} className="animate-spin" /> Gerando…
-              </>
-            ) : (
-              <>
-                <Sparkles size={18} /> Gerar Mapa
-              </>
-            )}
-          </button>
-          <button
             onClick={() => {
               const legendImage = buildLegendImage(coverData, gridWidth, gridHeight);
               const generatedPrompt = buildMapGenerationPrompt({ gridWidth, gridHeight, userTheme: userPrompt });
-              const promptFileContent = `=== INSTRUÇÕES PARA GERAÇÃO MANUAL DE MAPA ===\n\n1. O gerador de imagens da IA gratuito (Imagen 3) não suporta imagens como base (Image-to-Image).\n2. Se você tem acesso ao Google AI Studio ou ChatGPT Plus/Midjourney, use o prompt abaixo enviando a imagem gerada (legend.png) como anexo/referência.\n\n=== PROMPT DE GERAÇÃO ===\n\n${generatedPrompt}`;
+              const promptFileContent = `=== INSTRUÇÕES PARA GERAÇÃO MANUAL DE MAPA ===\n\n1. Use uma ferramenta de IA generativa (Midjourney, etc.) com a funcionalidade Image-to-Image.\n2. Use a imagem 'legend.png' como a imagem de base.\n3. Use o prompt de texto abaixo para guiar a IA.\n\n=== PROMPT DE GERAÇÃO ===\n\n${generatedPrompt}`;
               
-              // Download text file
               const blobTxt = new Blob([promptFileContent], { type: "text/plain" });
               const urlTxt = URL.createObjectURL(blobTxt);
               const aTxt = document.createElement("a");
@@ -617,7 +409,6 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
               aTxt.click();
               URL.revokeObjectURL(urlTxt);
 
-              // Download image file
               const aImg = document.createElement("a");
               aImg.href = legendImage;
               aImg.download = "legend.png";
@@ -660,9 +451,9 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
             accept="image/*"
             onChange={handleExternalImageUpload}
           />
-          {!canGenerate && !isGenerating && paintedCount === 0 && (
+          {paintedCount === 0 && (
             <p className="text-[11px] text-neutral-500 text-center mt-2">
-              Pinte ao menos uma célula pra liberar a geração.
+              Pinte ao menos uma célula para habilitar as ações.
             </p>
           )}
         </div>
@@ -749,7 +540,7 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      {/* Generation preview modal */}
+      {/* Preview modal for imported external images */}
       {generationResult && (
         <GenerationPreviewModal
           result={generationResult}
@@ -758,22 +549,11 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
           showOverlay={showCoverOverlay}
           onToggleOverlay={() => setShowCoverOverlay((v) => !v)}
           onClose={handleCloseModal}
-          onRegenerate={handleRegenerate}
-          onSave={handleSaveDraft}
-          regenerating={isGenerating}
-          canRegenerate={canGenerate || retryAfterSeconds === 0}
+          onSave={handleSaveMap}
         />
       )}
-
-      {/* Loading overlay with enhanced feedback */}
-      {isGenerating && (
-        <GenerationLoadingOverlay
-          elapsedSeconds={generationElapsedSeconds}
-          legendPreview={buildLegendImage(coverData, gridWidth, gridHeight)}
-        />
-      )}
-
-      {/* Save map dialog — z-[60] so it sits above the preview modal (z-50) */}
+      
+      {/* Save map dialog */}
       {showSaveDialog && (
         <SaveMapDialog
           mapName={saveMapName}
@@ -810,7 +590,7 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
       {showLoadDraftDialog && (
         <LoadDraftDialog
           onCancel={() => setShowLoadDraftDialog(false)}
-          onLoad={(draft) => {
+          onLoad={(draft: AIMapDraft) => {
              setGridWidth(draft.gridWidth);
              setGridHeight(draft.gridHeight);
              setCoverData(draft.coverData);
@@ -823,71 +603,6 @@ export function AIMapCreatorMenu({ onBack }: { onBack: () => void }) {
   );
 }
 
-/** Enhanced loading overlay with progress feedback */
-function GenerationLoadingOverlay({
-  elapsedSeconds,
-  legendPreview,
-}: {
-  elapsedSeconds: number;
-  legendPreview: string;
-}) {
-  const estimatedTotal = 30; // seconds
-  const progress = Math.min(95, (elapsedSeconds / estimatedTotal) * 100);
-
-  return (
-    <div className="absolute inset-0 z-[70] bg-black/85 backdrop-blur-md flex items-center justify-center">
-      <div className="bg-neutral-800 border border-neutral-700 rounded-xl p-8 max-w-md w-full shadow-2xl">
-        <div className="flex flex-col items-center gap-6">
-          {/* Animated spinner */}
-          <div className="relative">
-            <div className="w-16 h-16 border-4 border-neutral-700 border-t-indigo-500 rounded-full animate-spin" />
-            <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-400" size={24} />
-          </div>
-
-          {/* Status text */}
-          <div className="text-center space-y-2">
-            <h3 className="text-xl font-bold text-white">Gerando mapa...</h3>
-            <p className="text-sm text-neutral-400">
-              Isso pode levar até 30 segundos
-            </p>
-            <p className="text-xs text-neutral-500 font-mono">
-              {elapsedSeconds}s decorridos
-            </p>
-          </div>
-
-          {/* Progress bar */}
-          <div className="w-full space-y-2">
-            <div className="w-full h-2 bg-neutral-900 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 transition-all duration-1000 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-neutral-500 text-center">
-              {progress < 30 && "Enviando legenda para o Gemini..."}
-              {progress >= 30 && progress < 60 && "Gerando imagem realista..."}
-              {progress >= 60 && progress < 90 && "Detectando coberturas..."}
-              {progress >= 90 && "Finalizando..."}
-            </p>
-          </div>
-
-          {/* Legend preview */}
-          <div className="w-full">
-            <p className="text-xs text-neutral-500 mb-2 text-center">Legenda enviada:</p>
-            <div className="w-full aspect-square bg-neutral-900 rounded border border-neutral-700 overflow-hidden">
-              <img
-                src={legendPreview}
-                alt="Legenda"
-                className="w-full h-full object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 interface PreviewProps {
   result: AIMapGenerationResult;
   gridWidth: number;
@@ -895,10 +610,7 @@ interface PreviewProps {
   showOverlay: boolean;
   onToggleOverlay: () => void;
   onClose: () => void;
-  onRegenerate: () => void;
   onSave: () => void;
-  regenerating: boolean;
-  canRegenerate: boolean;
 }
 
 function GenerationPreviewModal({
@@ -908,12 +620,8 @@ function GenerationPreviewModal({
   showOverlay,
   onToggleOverlay,
   onClose,
-  onRegenerate,
   onSave,
-  regenerating,
-  canRegenerate,
 }: PreviewProps) {
-  const detectedCount = Object.keys(result.detectedCover).length;
   const dataUri = `data:${result.mimeType};base64,${result.generatedImage}`;
 
   return (
@@ -928,11 +636,10 @@ function GenerationPreviewModal({
         <div className="flex items-center justify-between p-4 border-b border-neutral-700">
           <div>
             <h3 className="text-lg font-black flex items-center gap-2">
-              <Sparkles size={18} className="text-indigo-400" /> Mapa Gerado
+              <Sparkles size={18} className="text-indigo-400" /> Pré-visualização do Mapa
             </h3>
-            <p className="text-xs text-neutral-400">
-              {gridWidth}×{gridHeight} células — {detectedCount} cobertura
-              {detectedCount === 1 ? "" : "s"} detectada{detectedCount === 1 ? "" : "s"}
+             <p className="text-xs text-neutral-400">
+              Verifique se a legenda está alinhada com a imagem importada.
             </p>
           </div>
           <button
@@ -960,26 +667,13 @@ function GenerationPreviewModal({
             className="flex items-center gap-2 px-3 py-2 rounded text-xs font-bold bg-neutral-900 border border-neutral-700 hover:bg-neutral-700 text-neutral-200"
           >
             {showOverlay ? <EyeOff size={14} /> : <Eye size={14} />}
-            {showOverlay ? "Ocultar coberturas" : "Mostrar coberturas"}
+            {showOverlay ? "Ocultar Legenda" : "Mostrar Legenda"}
           </button>
 
           <div className="flex items-center gap-2 ml-auto">
             <button
-              onClick={onRegenerate}
-              disabled={regenerating || !canRegenerate}
-              className="flex items-center gap-2 px-4 py-2 rounded text-sm font-bold bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
-            >
-              {regenerating ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <RefreshCw size={14} />
-              )}
-              Gerar Novamente
-            </button>
-            <button
               onClick={onSave}
               className="flex items-center gap-2 px-4 py-2 rounded text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-              title="Disponível na Etapa 8 do plano"
             >
               <Save size={14} /> Salvar Mapa
             </button>
@@ -998,7 +692,6 @@ interface PreviewCanvasProps {
   showOverlay: boolean;
 }
 
-/** Renders the generated image with a grid + cover overlay sized to fit. */
 function PreviewCanvas({
   imageDataUri,
   gridWidth,
@@ -1006,7 +699,6 @@ function PreviewCanvas({
   cover,
   showOverlay,
 }: PreviewCanvasProps) {
-  // Display each cell at a comfortable size — keep the modal under ~720px tall.
   const display = Math.min(720, Math.floor(640 / Math.max(gridWidth, gridHeight)) * Math.max(gridWidth, gridHeight));
   const cellPx = display / Math.max(gridWidth, gridHeight);
   return (
@@ -1016,7 +708,7 @@ function PreviewCanvas({
     >
       <img
         src={imageDataUri}
-        alt="Mapa gerado pela IA"
+        alt="Mapa importado"
         className="absolute inset-0 w-full h-full object-cover rounded"
       />
       {showOverlay && (
@@ -1059,8 +751,6 @@ function PreviewCanvas({
   );
 }
 
-// ── Save Map Dialog ──────────────────────────────────────────────────────────
-
 interface SaveMapDialogProps {
   mapName: string;
   onChangeName: (name: string) => void;
@@ -1089,7 +779,6 @@ function SaveMapDialog({
         onClick={(e) => e.stopPropagation()}
       >
         {savedMapId ? (
-          /* ── Success state ── */
           <>
             <div className="flex flex-col items-center gap-3 text-center py-2">
               <CheckCircle2 size={48} className="text-green-400" />
@@ -1115,7 +804,6 @@ function SaveMapDialog({
             </div>
           </>
         ) : (
-          /* ── Name input state ── */
           <>
             <div>
               <h3 className="text-lg font-black text-white mb-1 flex items-center gap-2">
@@ -1182,11 +870,11 @@ function SaveMapDialog({
 
 interface LoadDraftDialogProps {
   onCancel: () => void;
-  onLoad: (draft: any) => void;
+  onLoad: (draft: AIMapDraft) => void;
 }
 
 function LoadDraftDialog({ onCancel, onLoad }: LoadDraftDialogProps) {
-  const [drafts, setDrafts] = useState<any[]>([]);
+  const [drafts, setDrafts] = useState<AIMapDraft[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1215,7 +903,7 @@ function LoadDraftDialog({ onCancel, onLoad }: LoadDraftDialogProps) {
                 className="text-left bg-neutral-900 border border-neutral-700 p-3 rounded hover:bg-neutral-700 hover:border-indigo-500 transition-colors"
               >
                 <div className="font-bold text-white">{d.name}</div>
-                <div className="text-xs text-neutral-500">{d.gridWidth}x{d.gridHeight} • {new Date(d.updatedAt).toLocaleString()}</div>
+                <div className="text-xs text-neutral-500">{d.gridWidth}x{d.gridHeight} • {d.updatedAt ? new Date(d.updatedAt).toLocaleString() : ""}</div>
               </button>
             ))}
           </div>

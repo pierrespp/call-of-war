@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
-import { GameMap, CELL_SIZE, MapGridSettings, DEFAULT_GRID_SETTINGS } from "../data/constants";
+import { GameMap, CELL_SIZE, MapGridSettings, DEFAULT_GRID_SETTINGS, MAPS } from "../data/constants";
 import { useMaps } from "../contexts/MapContext";
 import { CoverType, MapCoverData } from "../types/game";
 import { validateDeployZones } from "../utils/pathfinding";
 import { getImageUrl } from "../lib/utils";
 import { Shield, ShieldAlert, ArrowLeft, Save, Eraser, Square, Droplet, Flag, Grid3x3, RotateCcw, DoorClosed, DoorOpen, AppWindow } from "lucide-react";
 import { useImages } from "../contexts/ImageContext";
+
+// NOTE: This component has been modified to work without a backend. 
+// It loads map data statically and does not save cover/grid settings to any server.
 
 interface BrushOption {
   id: CoverType;
@@ -36,78 +39,47 @@ type ToolMode = "draw" | "pan";
 export function MapEditorMenu({ onBack }: { onBack: () => void }) {
   const { getMapImage } = useImages();
   const { maps } = useMaps();
-  const [selectedMap, setSelectedMap] = useState("cidade_ruinas");
+  const [selectedMap, setSelectedMap] = useState(Object.keys(MAPS)[0] || "cidade_ruinas");
   const [coverData, setCoverData] = useState<MapCoverData>({});
   const [zoom, setZoom] = useState(0.4);
   const [camera, setCamera] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // This will just be a visual flicker now
   const [toolMode, setToolMode] = useState<ToolMode>("draw");
   const [brush, setBrush] = useState<CoverType>("half");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
-  // ── Per-map grid display settings (cell size + opacity) ──────────────────
   const [gridSettings, setGridSettings] = useState<MapGridSettings>(DEFAULT_GRID_SETTINGS);
-  const gridSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Load cover data + grid settings whenever the selected map changes.
+  // When map changes, reset the cover data and grid settings to default.
   useEffect(() => {
-    fetch(`/api/maps/${selectedMap}/cover`)
-      .then(res => res.json())
-      .then(data => setCoverData(data || {}));
-    fetch(`/api/maps/${selectedMap}/grid-settings`)
-      .then(res => res.json())
-      .then((data: MapGridSettings | null) => {
-        if (data && typeof data.cellSize === "number" && typeof data.opacity === "number") {
-          setGridSettings(data);
-        } else {
-          setGridSettings(DEFAULT_GRID_SETTINGS);
-        }
-      })
-      .catch(() => setGridSettings(DEFAULT_GRID_SETTINGS));
+    setCoverData({});
+    setGridSettings(DEFAULT_GRID_SETTINGS);
   }, [selectedMap]);
 
   const mapInfo = maps[selectedMap];
+  if (!mapInfo) {
+    return <div>Mapa não encontrado!</div>;
+  }
+
   const cellSize = gridSettings.cellSize;
-  // Map keeps its canonical display size (independent of the grid slider).
   const mapW = mapInfo.gridWidth * CELL_SIZE;
   const mapH = mapInfo.gridHeight * CELL_SIZE;
-  // The grid takes its own size from the per-map slider, so it can extend
-  // beyond the map (cellSize > CELL_SIZE) or only cover part of it (cellSize < CELL_SIZE).
   const gridW = mapInfo.gridWidth * cellSize;
   const gridH = mapInfo.gridHeight * cellSize;
-  // Canvas div is large enough to fit both the map and the (possibly bigger) grid.
   const canvasW = Math.max(mapW, gridW);
   const canvasH = Math.max(mapH, gridH);
 
-  /** Persist grid settings to the server (debounced so sliders don't spam). */
-  const persistGridSettings = (next: MapGridSettings) => {
-    if (gridSaveTimer.current) clearTimeout(gridSaveTimer.current);
-    gridSaveTimer.current = setTimeout(() => {
-      fetch(`/api/maps/${selectedMap}/grid-settings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      }).catch(() => {});
-    }, 250);
-  };
-
   const updateGrid = (patch: Partial<MapGridSettings>) => {
-    setGridSettings(prev => {
-      const next = { ...prev, ...patch };
-      persistGridSettings(next);
-      return next;
-    });
+    setGridSettings(prev => ({ ...prev, ...patch }));
   };
 
   const resetGridSettings = () => {
     setGridSettings(DEFAULT_GRID_SETTINGS);
-    if (gridSaveTimer.current) clearTimeout(gridSaveTimer.current);
-    fetch(`/api/maps/${selectedMap}/grid-settings`, { method: "DELETE" }).catch(() => {});
   };
 
   const paintCell = (e: React.MouseEvent) => {
@@ -141,32 +113,36 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
     if (isDragging && toolMode === "draw") paintCell(e);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const v = validateDeployZones(coverData);
     if (!v.ok) {
       setValidationError(v.errors.join("\n"));
+      setSavedAt(null);
       return;
     }
+    
+    // SIMULATE saving locally. In a real app, this would be an API call.
     setValidationError(null);
     setIsSaving(true);
-    try {
-      await fetch(`/api/maps/${selectedMap}/cover`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(coverData),
-      });
-      setSavedAt(Date.now());
-    } finally {
+    console.log("Simulating save with current cover data:", coverData);
+
+    // Create a downloadable file with the cover data.
+    const blob = new Blob([JSON.stringify(coverData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedMap}_cover.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    setTimeout(() => {
       setIsSaving(false);
-    }
+      setSavedAt(Date.now());
+    }, 500); // Simulate network latency
   };
 
   const validation = validateDeployZones(coverData);
-
-  // Cursor varies with the current tool.
   const canvasCursor = toolMode === "draw" ? "cursor-crosshair" : "cursor-move";
-
-  // Grid line thickness scales inversely with zoom so it stays visually consistent.
   const gridLineWidth = Math.max(1, 2 / zoom);
 
   return (
@@ -178,7 +154,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
             <ArrowLeft size={16} /> Voltar ao Menu
           </button>
           <h2 className="text-2xl font-black mb-2">Editor de Mapa</h2>
-          <p className="text-neutral-500 text-sm">Pinte coberturas, paredes, água e zonas de deploy. Ajuste a aparência do grid de cada mapa.</p>
+          <p className="text-neutral-500 text-sm">Pinte coberturas, paredes, água e zonas de deploy para os mapas existentes.</p>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto space-y-6">
@@ -234,7 +210,6 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
             </div>
           )}
 
-          {/* Grid display settings (per-map) */}
           <div className="bg-neutral-900 rounded-xl p-4 border border-neutral-700 space-y-3">
             <h3 className="font-bold text-sm text-neutral-300 uppercase tracking-widest border-b border-neutral-800 pb-2 mb-1 flex items-center justify-between">
               <span className="flex items-center gap-2"><Grid3x3 size={14} /> Grid</span>
@@ -259,7 +234,6 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
                 onChange={(e) => updateGrid({ cellSize: parseInt(e.target.value, 10) })}
                 className="w-full accent-indigo-500"
               />
-              <p className="text-[10px] text-neutral-500 mt-1">Aumenta ou diminui visualmente as células do grid neste mapa.</p>
             </div>
 
             <div>
@@ -276,13 +250,9 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
                 onChange={(e) => updateGrid({ opacity: parseInt(e.target.value, 10) / 100 })}
                 className="w-full accent-indigo-500"
               />
-              <p className="text-[10px] text-neutral-500 mt-1">Quão visíveis ficam as linhas do grid sobre a imagem.</p>
             </div>
-
-            <p className="text-[10px] text-neutral-600 pt-1 font-mono">Salvo automaticamente para "{mapInfo.name}".</p>
           </div>
 
-          {/* Zones summary */}
           <div className="bg-neutral-900 rounded-xl p-4 border border-neutral-700 space-y-2">
             <h3 className="font-bold text-sm text-neutral-300 uppercase tracking-widest border-b border-neutral-800 pb-2 mb-2">Zonas de Deploy</h3>
             <div className="text-xs space-y-1">
@@ -295,7 +265,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
                 <span className="font-mono">{validation.zonesB.length} zona(s) — {validation.zonesB.map(z => z.cells.length).join(", ") || "—"}</span>
               </div>
             </div>
-            <p className="text-[11px] text-neutral-500 pt-1">Cada zona deve ter exatamente 9 células contíguas (4-vizinhas).</p>
+            <p className="text-[11px] text-neutral-500 pt-1">Cada zona deve ter exatamente 9 células contíguas.</p>
           </div>
 
           {validationError && (
@@ -305,7 +275,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
           )}
           {savedAt && !validationError && (
             <div className="bg-emerald-900/50 border border-emerald-700 rounded-lg p-3 text-xs text-emerald-200">
-              Mapa salvo com sucesso.
+              Arquivo de cobertura (`{selectedMap}_cover.json`) baixado!
             </div>
           )}
         </div>
@@ -316,8 +286,9 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
             disabled={isSaving}
             className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors"
           >
-            <Save size={18} /> {isSaving ? "Salvando..." : "Salvar Coberturas"}
+            <Save size={18} /> {isSaving ? "Salvando..." : "Baixar Arquivo de Cobertura"}
           </button>
+           <p className="text-[11px] text-neutral-500 mt-2 text-center">Salva as informações de cobertura em um arquivo JSON local.</p>
         </div>
       </div>
 
@@ -357,7 +328,6 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
             backgroundColor: "#1a1a1a",
           }}
         >
-          {/* Map image — fixed size, anchored top-left, doesn't scale with the grid slider. */}
           <img
             src={getImageUrl(mapInfo.imagePath)}
             alt={`Map ${selectedMap}`}
@@ -372,7 +342,6 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
             }}
           />
 
-          {/* Grid overlay — its own size, governed by the per-map cell-size slider. */}
           {zoom > 0.15 && gridSettings.opacity > 0 && (
             <div
               className="absolute pointer-events-none z-10 mix-blend-overlay"
@@ -388,7 +357,6 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
             />
           )}
 
-          {/* Painted cells — follow the grid (positioned and sized in cellSize units). */}
           {Object.entries(coverData).map(([key, type]) => {
             if (!type || type === "none") return null;
             const [gx, gy] = key.split(",").map(Number);

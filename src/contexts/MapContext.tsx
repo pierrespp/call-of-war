@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { GameMap, MAPS } from '../data/constants';
 
+// NOTE: This context has been simplified to remove the fetching of AI-generated maps.
+// It now only provides the static maps defined in the constants file.
+
 interface MapContextType {
   maps: Record<string, GameMap>;
   loading: boolean;
@@ -11,38 +14,25 @@ interface MapContextType {
 const MapContext = createContext<MapContextType | undefined>(undefined);
 
 export const MapProvider = ({ children }: { children: ReactNode }) => {
+  // The `maps` state is now initialized directly with the static MAPS.
+  // The `loading` state is set to false as the data is available synchronously.
   const [maps, setMaps] = useState<Record<string, GameMap>>(MAPS);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
+  // This function is kept for compatibility but now does nothing, as maps are static.
   const loadMaps = async () => {
-    setLoading(true);
-    try {
-      const resp = await fetch("/api/ai-maps/list");
-      if (!resp.ok) throw new Error("Falha ao carregar mapas locais");
-      const localMaps: GameMap[] = await resp.json();
-      
-      const mapObj: Record<string, GameMap> = { ...MAPS };
-      localMaps.forEach((m) => {
-        mapObj[m.id] = m;
-      });
-      setMaps(mapObj);
-    } catch (error: any) {
-      console.warn('Erro ao carregar mapas locais, usando padrão:', error);
-      setMaps(MAPS);
-    } finally {
-      setLoading(false);
-    }
+    console.log("MapContext: Using static maps.");
+    setMaps(MAPS);
+    return Promise.resolve();
   };
 
+  // This function is also a no-op for now.
   const saveMap = async (map: GameMap) => {
-    // Para simplificar, mapas "hardcoded" não são salvos na API. 
-    // AI Maps já são salvos pelo componente do AI Map Generator.
+    console.log("MapContext: saveMap called, but is a no-op.");
     await loadMaps();
   };
 
-  useEffect(() => {
-    loadMaps();
-  }, []);
+  // No need for an initial `useEffect` to load maps as they are set statically.
 
   return (
     <MapContext.Provider value={{ maps, loading, refreshMaps: loadMaps, saveMap }}>

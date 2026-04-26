@@ -933,7 +933,7 @@ export default function App() {
                 Editor de Mapa
               </button>
               <button onClick={() => setAppState("aiMapCreator")} className="flex-1 text-sm text-neutral-400 hover:text-white py-2 transition-colors">
-                Gerador de Mapa
+                Editor de Legenda/Overlay
               </button>
             </div>
             <div className="flex gap-3 justify-center">
@@ -1608,7 +1608,6 @@ export default function App() {
                             content: [
                               `No carregador: ${selectedUnit.ammoInMag}${w ? ` / ${w.reload}` : ""}`,
                               w ? `Disparos neste turno: ${selectedUnit.shotsThisTurn} de ${w.shots} permitidos.` : "Unidade desarmada.",
-                              "Cada disparo consome 1 munição. O primeiro disparo do turno custa Intervenção; os demais respeitam o limite de disparos da arma.",
                               "Recarregar (Intervenção) reabastece o carregador até a capacidade total.",
                             ],
                           });
