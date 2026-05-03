@@ -1,0 +1,29 @@
+1. Aqui vai a explicação da ações de um turno:
+Cada unidade possui 3 tipos de ações por rodada: Ação de Movimento, Ação Tática e Ação de Intervenção. 
+Ação Tática: É a ação na qual o jogador utiliza para usar determinados equipamentos ou realizar ações especiais de acordo com suas habilidades. Utiliza-se esta ação também para a transição de arma primária para arma secundária, localizar alvos com a luneta de um rifle e para abrir portas. 
+Ação de Movimento: Usada para se movimentar dentro do jogo. Essa ação possibilita ao personagem se locomover 10 centímetros, caso o jogador pretenda ir mais longe ainda com o seu soldado, ele usará a Investida, que é quando ele transforma a sua Ação de Intervenção em Ação de Movimento para se locomover por mais 10 centímetros.
+O deslocamento pode ser alterado de acordo com o colete e habilidades. 
+Ação de Intervenção: Nesta ação o jogador poderá utilizar para atirar, jogar granadas, usar kits de socorro, recarregar a arma, acessar mecanismos, consertar veículos ou assumir a Postura de Guarda. 
+Postura de Guarda: Utilizando uma Ação de Intervenção, o personagem monta guarda até o início do próximo turno dele e poderá atirar em qualquer inimigo que iniciar a ação de movimentação em sua linha de visão. A postura de guarda sofre uma penalidade do disparo de 10% ao atirador, mas concede a ele um bônus de Defesa de 10% desde que o atirador esteja dentro do arco de visão do soldado. O ataque da Postura de Guarda¸ deve ser realizado no primeiro momento em que o alvo entrou na linha de tiro do soldado. A Postura de Guarda não é afetada por habilidades do tipo Oportunismo. 
+Ação Livre: É a ação na qual, em determinadas situações podem ser utilizadas fora do turno do jogador. Esta ação não interfere nas outras ações e é comumente utilizada por habilidades. 
+Jogar-se ao Chão: Utilizando a Ação Tática, o soldado pode se jogar ao chão para obter abrigo, feito isso ele só poderá se mover apenas 3 centímetros abaixado utilizando a Ação de Movimento ou caso esteja atrás de uma cobertura parcial, esta se torna cobertura total para determinados ângulos de visão. Jogar-se ao Chão proporciona ao soldado um valor de 10% de Defesa contra tiros diretos, este bônus é anulado quando atacantes inimigos estão dentro de 5 centímetros de distância e ignorado também quando se trata de granadas, mísseis ou morteiros.
+
+2. Esta correto
+
+3. Esta correto
+
+4. B
+
+5. "É a ação na qual o jogador utiliza para usar determinados equipamentos ou realizar ações especiais de acordo com suas habilidades. Utiliza-se esta ação também para a transição de arma primária para arma secundária, localizar alvos com a luneta de um rifle e para abrir portas."
+
+6. Implemente dessa forma, mas não faça atirar automaticamente, faça aparecer uma janela para o jogador informando que ele pode atirar por
+causa do guard, após isso o tiro acontece e o jogo volta a acontecer normalmente.
+
+7. "Investida, que é quando ele transforma a sua Ação de Intervenção em Ação de Movimento para se locomover seu movimento novamente"
+Lembrando que o movimento base de todos é 10.5M.
+
+8. Correto, mantenha já da forma que esta, ignore os centimetros.
+
+9. Adicione os novas armas seguindo o novo padrão.
+
+10. Não, são apenas essas armas.

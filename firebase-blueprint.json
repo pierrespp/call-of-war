@@ -1,0 +1,102 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Perfil do usuário com nome de comandante",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "commanderName": { "type": "string" }
+      },
+      "required": ["id", "email"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "A game room session containing draft, deploy, and game states",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "phase": { "type": "string" },
+        "draftState": { "type": "object" },
+        "deployState": { "type": "object" },
+        "gameState": { "type": "object" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "phase"]
+    },
+    "AIMapRecord": {
+      "title": "AI Map Record",
+      "description": "Metadata for a saved AI generated map",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "imagePath": { "type": "string" },
+        "coverData": { "type": "object" },
+        "gridWidth": { "type": "number" },
+        "gridHeight": { "type": "number" },
+        "createdAt": { "type": "number" }
+      }
+    },
+    "AIMapDraft": {
+      "title": "AI Map Draft",
+      "description": "Draft for map generation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "gridWidth": { "type": "number" },
+        "gridHeight": { "type": "number" },
+        "coverData": { "type": "object" },
+        "userPrompt": { "type": "string" },
+        "updatedAt": { "type": "number" }
+      }
+    },
+    "Token": {
+      "title": "Token",
+      "description": "Custom image data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "type": { "type": "string", "enum": ["role", "map"] },
+        "deleted": { "type": "boolean" }
+      },
+      "required": ["name", "imageUrl", "type"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Game sessions"
+    },
+    "ai-maps/{mapId}": {
+      "schema": "AIMapRecord",
+      "description": "Published AI maps"
+    },
+    "ai-map-drafts/{draftId}": {
+      "schema": "AIMapDraft",
+      "description": "Map design drafts"
+    },
+    "map-covers/{mapId}": {
+      "schema": "object",
+      "description": "Grid cover information"
+    },
+    "map-grid-settings/{mapId}": {
+      "schema": "object",
+      "description": "Grid display preferences"
+    },
+    "tokens/{tokenId}": {
+      "schema": "Token",
+      "description": "Custom image tokens"
+    }
+  }
+}
