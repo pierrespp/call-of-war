@@ -1,5 +1,4 @@
 import { Room, Unit, CoverType } from "../types/game";
-import { ShotCoverResult } from "../features/combat/utils/cover";
 
 export interface MissionEngine {
   id: string;
@@ -10,5 +9,5 @@ export interface MissionEngine {
   /** Executado após o movimento de qualquer unidade */
   onUnitMove?: (room: Room, unit: Unit) => void;
   /** Executado após um disparo */
-  onShoot?: (room: Room, attacker: Unit, coverInfo: ShotCoverResult) => void;
+  onShoot?: (room: Room, attacker: Unit, coverInfo: any) => void;
 }
