@@ -291,11 +291,23 @@ function pushLog(room: Room, message: string) {
   });
 }
 
-function ensureUnitDefaults(u: any): Unit {
+function ensureUnitDefaults(u: Partial<Unit> & Record<string, any>): Unit {
   const pWeapon = u.primaryWeapon ? WEAPONS[u.primaryWeapon] : null;
   const sWeapon = u.secondaryWeapon ? WEAPONS[u.secondaryWeapon] : null;
   return {
-    ...u,
+    id: u.id || "",
+    name: u.name || "",
+    team: u.team || "A",
+    className: u.className || "USA_Assalto",
+    x: u.x ?? 0,
+    y: u.y ?? 0,
+    rotation: u.rotation ?? 0,
+    hp: u.hp ?? 5,
+    armorName: u.armorName ?? null,
+    primaryWeapon: u.primaryWeapon ?? null,
+    secondaryWeapon: u.secondaryWeapon ?? null,
+    attachments: u.attachments ?? [],
+    skills: u.skills ?? [],
     activeWeaponSlot: u.activeWeaponSlot ?? 'primary',
     movedThisTurn: u.movedThisTurn ?? 0,
     extraMoveMeters: u.extraMoveMeters ?? 0,
@@ -312,6 +324,14 @@ function ensureUnitDefaults(u: any): Unit {
     },
     stance: u.stance ?? "standing",
     facingLockedThisTurn: u.facingLockedThisTurn ?? false,
+    isBot: u.isBot,
+    botType: u.botType,
+    guardShotsThisTurn: u.guardShotsThisTurn,
+    suppressedUntilTurn: u.suppressedUntilTurn,
+    killedThisTurn: u.killedThisTurn,
+    hasSmokeGrenade: u.hasSmokeGrenade,
+    alertStatus: u.alertStatus,
+    targetLocation: u.targetLocation,
   };
 }
 
@@ -1598,8 +1618,8 @@ async function startServer() {
 
       await saveRoom(room);
       res.json({ success: true, gameState: room.gameState });
-    } catch (err: any) {
-      res.status(400).json({ error: err.message || "Erro interno" });
+    } catch (err: unknown) {
+      res.status(400).json({ error: err instanceof Error ? err.message : "Erro interno" });
     }
   });
 
