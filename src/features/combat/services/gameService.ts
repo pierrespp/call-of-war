@@ -1,5 +1,5 @@
 import { db } from '@/src/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 import { GameState, MapCoverData } from '@/src/types/game';
 
 const GAME_DOC_ID = 'current-game';
@@ -64,7 +64,7 @@ export const gameService = {
   },
 
   // Salvar histórico de partidas
-  async saveGameHistory(gameId: string, gameData: any): Promise<void> {
+  async saveGameHistory(gameId: string, gameData: Record<string, unknown>): Promise<void> {
     await setDoc(doc(db, 'game-history', gameId), {
       ...gameData,
       savedAt: Date.now()
@@ -72,17 +72,17 @@ export const gameService = {
   },
 
   // Buscar histórico de partidas
-  async getGameHistory(limit: number = 10): Promise<any[]> {
+  async getGameHistory(limit: number = 10): Promise<Record<string, unknown>[]> {
     const historyRef = collection(db, 'game-history');
     const snapshot = await getDocs(historyRef);
     return snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as any))
-      .sort((a: any, b: any) => b.savedAt - a.savedAt)
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .sort((a: Record<string, any>, b: Record<string, any>) => (b.savedAt ?? 0) - (a.savedAt ?? 0))
       .slice(0, limit);
   },
 
   // Salvar sessão de jogo
-  async saveSession(sessionId: string, sessionData: any): Promise<void> {
+  async saveSession(sessionId: string, sessionData: Record<string, unknown>): Promise<void> {
     await setDoc(doc(db, 'sessions', sessionId), {
       ...sessionData,
       createdAt: Date.now()
@@ -90,7 +90,7 @@ export const gameService = {
   },
 
   // Buscar sessão de jogo
-  async getSession(sessionId: string): Promise<any | null> {
+  async getSession(sessionId: string): Promise<Record<string, unknown> | null> {
     const docRef = doc(db, 'sessions', sessionId);
     const docSnap = await getDoc(docRef);
 
