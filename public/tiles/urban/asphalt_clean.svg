@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#26272b"/>
+  <!-- Textura de asfalto tático -->
+  <circle cx="12" cy="18" r="1.5" fill="#1c1d20" opacity="0.6"/>
+  <circle cx="38" cy="34" r="2" fill="#1a1b1d" opacity="0.7"/>
+  <circle cx="28" cy="10" r="1" fill="#383a40" opacity="0.4"/>
+  <circle cx="8" cy="42" r="1.5" fill="#32343a" opacity="0.5"/>
+  <circle cx="44" cy="14" r="1" fill="#1f2024" opacity="0.8"/>
+  <rect x="0" y="0" width="50" height="50" fill="none" stroke="#33363f" stroke-width="0.5" opacity="0.2"/>
+</svg>

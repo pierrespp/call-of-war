@@ -1,0 +1,128 @@
+{
+  "id": "urban_ruins",
+  "name": "Zona Urbana & Ruínas",
+  "description": "Tilesets modulares para ruas, avenidas, calçadas, becos e combate tático urbano.",
+  "tiles": [
+    {
+      "id": "asphalt_clean",
+      "name": "Asfalto Liso",
+      "category": "floor",
+      "imagePath": "/tiles/urban/asphalt_clean.svg",
+      "coverType": "none",
+      "description": "Via aberta sem cobertura. Movimento padrão."
+    },
+    {
+      "id": "asphalt_cracked",
+      "name": "Asfalto Trincado",
+      "category": "floor",
+      "imagePath": "/tiles/urban/asphalt_cracked.svg",
+      "coverType": "none",
+      "description": "Asfalto deteriorado por combate."
+    },
+    {
+      "id": "sidewalk_tile",
+      "name": "Calçada de Concreto",
+      "category": "floor",
+      "imagePath": "/tiles/urban/sidewalk_tile.svg",
+      "coverType": "none",
+      "description": "Piso de concreto para pedestres."
+    },
+    {
+      "id": "indoor_floor",
+      "name": "Piso Interno",
+      "category": "floor",
+      "imagePath": "/tiles/urban/indoor_floor.svg",
+      "coverType": "none",
+      "description": "Chão interno de construções e prédios."
+    },
+    {
+      "id": "puddle_water",
+      "name": "Poça d'Água / Lama",
+      "category": "liquid",
+      "imagePath": "/tiles/urban/puddle_water.svg",
+      "coverType": "water",
+      "description": "Água / Lama. Cada célula custa o dobro de movimento (3m)."
+    },
+    {
+      "id": "brick_wall",
+      "name": "Parede de Alvenaria",
+      "category": "wall",
+      "imagePath": "/tiles/urban/brick_wall.svg",
+      "coverType": "wall",
+      "rotatable": true,
+      "description": "Parede sólida de tijolos. Bloqueia linha de visão e tiros."
+    },
+    {
+      "id": "concrete_barrier",
+      "name": "Barreira de Concreto",
+      "category": "cover",
+      "imagePath": "/tiles/urban/concrete_barrier.svg",
+      "coverType": "half",
+      "rotatable": true,
+      "description": "Mureta de concreto militar / Jersey. Meia Cobertura (-20% hit)."
+    },
+    {
+      "id": "sandbags",
+      "name": "Sacos de Areia",
+      "category": "cover",
+      "imagePath": "/tiles/urban/sandbags.svg",
+      "coverType": "half",
+      "rotatable": true,
+      "description": "Entrincheiramento tático. Meia Cobertura (-20% hit)."
+    },
+    {
+      "id": "car_wreck",
+      "name": "Carro Destruído",
+      "category": "cover",
+      "imagePath": "/tiles/urban/car_wreck.svg",
+      "coverType": "full",
+      "rotatable": true,
+      "description": "Veículo incendiado / carcaça. Cobertura Total (-40% hit)."
+    },
+    {
+      "id": "dumpster",
+      "name": "Caçamba de Lixo",
+      "category": "cover",
+      "imagePath": "/tiles/urban/dumpster.svg",
+      "coverType": "full",
+      "rotatable": true,
+      "description": "Caçamba de aço pesada em becos. Cobertura Total (-40% hit)."
+    },
+    {
+      "id": "wooden_crates",
+      "name": "Caixas de Suprimento",
+      "category": "cover",
+      "imagePath": "/tiles/urban/wooden_crates.svg",
+      "coverType": "half",
+      "rotatable": true,
+      "description": "Caixas militares de madeira. Meia Cobertura (-20% hit)."
+    },
+    {
+      "id": "door_closed",
+      "name": "Porta de Aço (Fechada)",
+      "category": "door",
+      "imagePath": "/tiles/urban/door_closed.svg",
+      "coverType": "doorClose",
+      "rotatable": true,
+      "description": "Porta fechada. Bloqueia visão/tiro até ser aberta por uma unidade."
+    },
+    {
+      "id": "door_open",
+      "name": "Porta de Aço (Aberta)",
+      "category": "door",
+      "imagePath": "/tiles/urban/door_open.svg",
+      "coverType": "doorOpen",
+      "rotatable": true,
+      "description": "Passagem aberta através de uma parede."
+    },
+    {
+      "id": "window_frame",
+      "name": "Janela Quebrada",
+      "category": "window",
+      "imagePath": "/tiles/urban/window_frame.svg",
+      "coverType": "window",
+      "rotatable": true,
+      "description": "Permite linha de tiro e visão com meia cobertura."
+    }
+  ]
+}

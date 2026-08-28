@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#242529"/>
+  <!-- Rachaduras no asfalto -->
+  <path d="M10 5 L16 18 L24 22 L32 38 L42 45" stroke="#121315" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <path d="M24 22 L30 16 L40 12" stroke="#121315" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M16 18 L8 28 L5 36" stroke="#121315" stroke-width="1" fill="none" stroke-linecap="round"/>
+  <!-- Detritos -->
+  <circle cx="28" cy="26" r="1.5" fill="#4a4c54" opacity="0.6"/>
+  <circle cx="15" cy="35" r="1" fill="#4a4c54" opacity="0.5"/>
+</svg>

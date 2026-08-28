@@ -1,0 +1,36 @@
+Primeiro, crie o sistema de turno, seguindo as seguintes regras
+"O turno do jogador é dividido em etapas, são elas:
+ Etapa de Manobra: É quando o jogador realiza todas as ações de movimento de seus soldados e posiciona o seu campo de visão;
+ Etapa de Conflito: É quando o jogador decide atacar um inimigo ou utilizar a sua ação de Intervenção para outras estratégias;
+ Etapa de Decisão: É quando o jogador utiliza a sua Ação Tática para realizar ações especiais ou até mesmo reposicionar o campo visual do soldado.
+Lembrando que o jogador não é obrigado a seguir as etapas pela ordem descritas, ele segue de acordo com a sua necessidade estratégica. Movimento: Em boa parte do jogo, o turno do jogador começará com o movimento das unidades. Neste
+momento, ande com o seu soldado o valor indicado por ele e termine o movimento movendo a sua peça voltando à visão
+do soldado para o ângulo desejado, após escolhido o ângulo, este só poderá ser mudado no próximo turno do jogador.
+Cada soldado possui apenas uma Ação de Movimento, mas caso queira ir mais longe, como dito antes, ele poderá utilizar a Ação de Investida que transforma a Ação de Intervenção em Ação de Movimento para chegar mais rápido ou até mesmo sair de uma zona de conflito rapidamente. Este movimento se chama Investida.
+O movimento básico dos soldados são 10 centímetros, podendo movimentar-se para qualquer lado. Ao determinar a posição final do soldado, a marca de 10 centímetros deve tocar a base em qualquer ponto dela encerrando assim a movimentação. Intervenção: Após posicionar o seu soldado no local desejado, é hora de agir. Utilize esta ação para disparar
+contra um inimigo, recarregar sua arma caso seja necessário e até mesmo utilizar um item como Kit de Socorro ou Granada. Postura de Guarda: Caso o jogador deseje que seu soldado proteja uma esquina, porta ou qualquer outra passagem, mas que no momento não há inimigos a vista, ele pode utilizar a sua Ação de Intervenção para assumir a Postura de Guarda"
+
+Depois, adapte essas descrições para o código, irei te explicar oque cada valor é referente.
+Pontos(points): Valor de pontos para criação do exercito antes do inicio da partida que irá acrescentar usando esse item, essa lógica já esta correta.
+Dano(damage): A quantidade de dano que arma dá de dano se acertar
+Critico(critical): O valor de será de dano casa seja um acerto crítico
+Chance de crítico(critical_chance): É a chance do acerto ser critico, e pelo oque vi nos testes o sistema de critico não
+existe ou não esta funcionando. 
+//Implemente o sistema de critico seguindo as regras do sistema
+"Crítico: Após ser confirmado um disparo bem sucedido, o atacante, casa tenha, poderá realizar uma segunda 
+jogada de ataque utilizando a chance de crítico para amplificar o dano causado. 
+Caso ele não consiga um resultado menor ou igual ao indicado na chance de crítico o dano continuará sendo o dano normal. 
+Chance de Crítico: Assim como o ataque, o crítico deve ser jogado após a confirmação do acerto. 
+O valor da jogada de crítico pode ser alterado tanto para mais quanto para menos de acordo com o equipamento, 
+condição do alvo, classe do atirador e acessório utilizado. 
+A Chance de Crítico não é afetada pela distância de disparo."//
+Disparo(shots): Quantidade de vezes que o token com essa arma pode atirar. Pelo oque vi, os tokens estão podendo atirar
+quantas vezes quiserem durante seus turnos, enquanto deveria cada token ser limitada pelo valor de Disparo que sua arma tem.
+//Implemente esse sistema//
+Recarga(reload): Quantidade de vezes que a arma pode atirar antes de precisar recarregar.
+Alcance(range): O alcance que a arma consegue acertar sem começar a afetar sua chance de acerto.
+Classe(weapon_class): A classe de cada arma, que é o grupo das armas, já que existem acessorios que só se encaixam em certos
+grupos de armas. Essa classe não existe, precisa criar.
+Facção(weapon_faction): Cada arma é especifico para uma facção, e deve seguir essa regra.
+Estou colocando em anexo uma imagem da tabela para você conseguir verificar os valores.
+Monte todo o plano de ação para essas alterações, e me tire qualquer dúvida comigo antes de executar.

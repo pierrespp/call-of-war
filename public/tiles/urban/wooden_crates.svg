@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#26272b"/>
+  <!-- Sombra das caixas -->
+  <rect x="7" y="9" width="38" height="34" fill="#111214" opacity="0.6"/>
+  <!-- Caixa 1 grande -->
+  <rect x="5" y="7" width="22" height="22" fill="#8d6e40" stroke="#4a391e" stroke-width="1.2"/>
+  <line x1="5" y1="7" x2="27" y2="29" stroke="#5a4524" stroke-width="1"/>
+  <line x1="27" y1="7" x2="5" y2="29" stroke="#5a4524" stroke-width="1"/>
+  <!-- Caixa 2 média -->
+  <rect x="25" y="15" width="20" height="26" fill="#785d34" stroke="#3e2f17" stroke-width="1.2"/>
+  <line x1="25" y1="15" x2="45" y2="41" stroke="#4d3b1e" stroke-width="1"/>
+  <line x1="45" y1="15" x2="25" y2="41" stroke="#4d3b1e" stroke-width="1"/>
+  <!-- Caixa 3 pequena -->
+  <rect x="7" y="27" width="16" height="15" fill="#a17f4b" stroke="#523f20" stroke-width="1.2"/>
+</svg>

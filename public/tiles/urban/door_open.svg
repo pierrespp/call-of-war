@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#3a3733"/>
+  <!-- Batentes laterais da parede -->
+  <rect x="0" y="15" width="10" height="20" fill="#522b29" stroke="#381c1b" stroke-width="1.2"/>
+  <rect x="40" y="15" width="10" height="20" fill="#522b29" stroke="#381c1b" stroke-width="1.2"/>
+  <!-- Folha da porta aberta a 90 graus -->
+  <rect x="10" y="20" width="8" height="26" fill="#525866" stroke="#292c33" stroke-width="1.5" rx="1"/>
+  <!-- Vão livre de passagem -->
+  <line x1="12" y1="25" x2="40" y2="25" stroke="#10b981" stroke-width="1" stroke-dasharray="2 2" opacity="0.6"/>
+</svg>

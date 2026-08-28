@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#3a3733"/>
+  <!-- Batentes laterais da parede -->
+  <rect x="0" y="15" width="12" height="20" fill="#522b29" stroke="#381c1b" stroke-width="1.2"/>
+  <rect x="38" y="15" width="12" height="20" fill="#522b29" stroke="#381c1b" stroke-width="1.2"/>
+  <!-- Vidro quebrado / peitoril de janela -->
+  <rect x="12" y="22" width="26" height="6" fill="#0891b2" stroke="#0e7490" stroke-width="1" opacity="0.6"/>
+  <!-- Cacos de vidro quebrados -->
+  <path d="M14 24 L20 22 L24 26 L30 23 L36 25" stroke="#a5f3fc" stroke-width="1.2" fill="none"/>
+</svg>
