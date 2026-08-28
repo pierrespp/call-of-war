@@ -237,9 +237,9 @@ export default function App() {
   }, [units, mapCoverConfig, gridWidth, gridHeight]);
 
   // ── Error helper ───────────────────────────────────────────────────────────
-  const withError = async <T,>(fn: () => Promise<T>): Promise<T | void> => {
+  const withError = async (fn: () => Promise<unknown>) => {
     setActionError(null);
-    try { return await fn(); }
+    try { await fn(); }
     catch (e: unknown) { setActionError(e instanceof Error ? e.message : 'Erro desconhecido'); }
   };
 

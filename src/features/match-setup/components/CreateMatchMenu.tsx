@@ -311,12 +311,12 @@ export function CreateMatchMenu({
   const removeUnit = (id: string) =>
     updateUnits(units.filter((u) => u.id !== id));
 
-  const updateUnit = (id: string, field: keyof DraftUnit, value: unknown) => {
+  const updateUnit = (id: string, field: keyof DraftUnit, value: any) => {
     const idx = units.findIndex((u) => u.id === id);
     if (idx === -1) return;
     const oldUnit = units[idx];
     let newUnit: DraftUnit = { ...oldUnit, [field]: value };
-    if (field === "className" && typeof value === "string") {
+    if (field === "className") {
       const newClassName = CLASSES[value]?.name || "";
       newUnit.skills = newUnit.skills.filter(
         (s) =>

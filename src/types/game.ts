@@ -147,7 +147,7 @@ export interface GameState {
     currentDP: number;
   };
   recentlyEliminated?: Record<string, {
-    unitSnapshot: Unit;
+    unitSnapshot: any;
     x: number;
     y: number;
     turn: number;
