@@ -60,5 +60,7 @@
 - [x] **Compatibilidade Universal de Assets (GitHub Pages + Render)**: Atualizado `MapContext.tsx`, `BattleCanvas2D.tsx`, `DeployScreen.tsx`, `CreateMatchMenu.tsx` e `MapEditorMenu.tsx` para garantir o uso de `getImageUrl` e `VITE_API_URL`, assegurando carregamento correto tanto no subdiretório `/call-of-war/` do GitHub Pages quanto no servidor Express no Render.
 - [x] **Desbloqueio de Início de Partida & Fallback Resiliente de API**: Corrigida a condição impeditiva `&& appState !== 'createMatch'` em `App.tsx` que impedia o criador da partida de avançar para a fase de deploy ao clicar em "Iniciar Missão". Implementado fallback automático para a URL do Render em builds de produção de `apiService.ts` e adicionado favicon SVG em `index.html` para eliminar erros 404 no console (GameDevExpert / QATester).
 - [x] **Transição Completa para Mapas 100% em Sprites Modulares**: Desacopladas todas as imagens estáticas JPG (`public/maps/`), consolidando o VTT para operar puramente em camadas de sprites (tilesets SVG) em alta performance a 60 FPS com pré-cache no Canvas. Atualizados `MapEditorMenu.tsx`, `BattleCanvas2D.tsx`, `DeployScreen.tsx`, `CreateMatchMenu.tsx` e `constants.ts` (GameDevExpert / UIUXMaster).
+- [x] **Limpeza de Assets Obsoletos**: Removidos os arquivos JPG legados de `public/maps/` (`cidade_ruinas.jpg`, `selva_rio.jpg`, `acampamento.jpg`), reduzindo ~9MB do repositório e eliminando qualquer risco de carregamento de imagens de fundo corrompidas.
+
 
 
