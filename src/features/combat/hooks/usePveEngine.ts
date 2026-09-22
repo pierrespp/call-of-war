@@ -62,7 +62,7 @@ export function usePveEngine(
     }
 
     const bUnits = Object.values(gameState.units).filter(u => u.team === "B" && u.hp > 0);
-    const hasUnactedUnits = bUnits.some(u => u.actions.move || u.actions.tactical);
+    const hasUnactedUnits = bUnits.some(u => u.actions.move || u.actions.intervention || u.actions.tactical);
     
     if (hasUnactedUnits) {
        isRunningRef.current = true;
@@ -108,7 +108,7 @@ async function processBotTurn(roomId: string, playerToken: string, roomState: Ro
   const aUnits = Object.values(gameState.units).filter(u => u.team === "A" && u.hp > 0);
 
   // Find a unit that isn't currently interrupted
-  const unit = bUnits.find(u => (u.actions.move || u.actions.tactical) && roomState.interruptedMove?.unitId !== u.id);
+  const unit = bUnits.find(u => (u.actions.move || u.actions.intervention || u.actions.tactical) && roomState.interruptedMove?.unitId !== u.id);
   if (!unit) {
     console.log("[PVE] No unacted units found for Team B.");
     return null; 
@@ -132,6 +132,7 @@ async function processZombieLogic(roomId: string, playerToken: string, unit: Uni
    // 1. Silent Run: Dormant status (Zumbis que não viram ninguém ainda)
    if (unit.alertStatus === "dormant") {
       if (unit.actions.move) await apiService.passUnitAction(roomId, playerToken, unit.id, "move").catch(() => null);
+      if (unit.actions.intervention) await apiService.passUnitAction(roomId, playerToken, unit.id, "intervention").catch(() => null);
       if (unit.actions.tactical) return await apiService.passUnitAction(roomId, playerToken, unit.id, "tactical").catch(() => null);
       return null;
    }
@@ -215,7 +216,7 @@ async function processZombieLogic(roomId: string, playerToken: string, unit: Uni
       return res;
    }
 
-   if (unit.actions.tactical) {
+   if (unit.actions.intervention) {
       for (const t of targets) {
          const dx = t.x - unit.x;
          const dy = t.y - unit.y;
@@ -229,6 +230,12 @@ async function processZombieLogic(roomId: string, playerToken: string, unit: Uni
          }
       }
       
+      const res = await apiService.passUnitAction(roomId, playerToken, unit.id, 'intervention').catch(() => null);
+      await new Promise(r => setTimeout(r, 100));
+      return res;
+   }
+
+   if (unit.actions.tactical) {
       const res = await apiService.passUnitAction(roomId, playerToken, unit.id, 'tactical').catch(() => null);
       await new Promise(r => setTimeout(r, 100));
       return res;
@@ -243,7 +250,7 @@ async function processTacticalLogic(roomId: string, playerToken: string, unit: U
       return res;
    }
 
-   if (unit.actions.tactical && (unit.activeWeaponSlot === 'secondary' ? unit.secondaryWeapon : unit.primaryWeapon) && (unit.activeWeaponSlot === 'secondary' ? unit.secondaryAmmoInMag : unit.primaryAmmoInMag) > 0) {
+   if (unit.actions.intervention && (unit.activeWeaponSlot === 'secondary' ? unit.secondaryWeapon : unit.primaryWeapon) && (unit.activeWeaponSlot === 'secondary' ? unit.secondaryAmmoInMag : unit.primaryAmmoInMag) > 0) {
       for (const t of targets) {
          const ux = Math.floor(unit.x / CELL_SIZE);
          const uy = Math.floor(unit.y / CELL_SIZE);
@@ -256,6 +263,9 @@ async function processTacticalLogic(roomId: string, playerToken: string, unit: U
              return res;
          }
       }
+      const res = await apiService.passUnitAction(roomId, playerToken, unit.id, 'intervention').catch(() => null);
+      await new Promise(r => setTimeout(r, 100));
+      return res;
    }
 
    if (unit.actions.move) {

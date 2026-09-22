@@ -2319,7 +2319,7 @@ async function startServer() {
     const { playerToken, unitId, actionType } = req.body as {
       playerToken: string;
       unitId: string;
-      actionType: 'move' | 'tactical';
+      actionType: 'move' | 'tactical' | 'intervention';
     };
     const room = await loadRoom(roomId);
     if (!room) return res.status(404).json({ error: "Sala não encontrada" });
@@ -2341,6 +2341,9 @@ async function startServer() {
     if (actionType === 'move') {
        if (!unit.actions.move) return res.status(400).json({ error: "Movimento já gasto" });
        unit.actions.move = false;
+    } else if (actionType === 'intervention') {
+       if (!unit.actions.intervention) return res.status(400).json({ error: "Intervenção já gasta" });
+       unit.actions.intervention = false;
     } else {
        if (!unit.actions.tactical) return res.status(400).json({ error: "Ação tática já gasta" });
        unit.actions.tactical = false;

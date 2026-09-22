@@ -1,53 +1,78 @@
-# Plano de Implementação — Sistema Avançado de Efeitos de Partículas, Impacto e Trajetórias de Tiros com Glow
+# Correção de Carregamento de Sprites no Editor de Mapas (GitHub Pages)
 
-> **Persona Guia:** `UIUXMaster` (Especialista em Beleza Tática & Interface Premium) em conjunto com `GameDevExpert`  
-> **Expertises Consultadas:** `expertise/CANVAS_RENDER.md`, `expertise/COMBAT_AND_TURNS.md`, `expertise/ARQUITETURA.md`  
-
----
-
-## 🎯 Objetivo Visual & Técnico
-Atualmente, os disparos e ataques acontecem com atualização imediata de logs, mas sem uma resposta visual tática no Canvas.
-Esta tarefa implementa:
-1. **Trajetórias Balísticas com Glow & Tracer Beams**: Feixes luminosos rápidos de projéteis cruzando o mapa do atirador até o alvo, com rastro de brilho neon (laranja para projéteis cinéticos, ciano/azul para snipers, amarelo/fogo para granadas).
-2. **Efeitos de Impacto Físico (Sparks, Blood Spatter, Smoke & Shrapnel)**:
-   - Acerto em Alvo Orgânico / Soldado: Partículas de impacto carmesim/sangue direcional e flash de acerto.
-   - Dano em Armadura / Bloqueio: Faíscas brilhantes de ricochete metálico (sparks).
-   - Acerto Crítico: Flash radial estroboscópico e onda de choque sutil.
-   - Explosões de Granadas: Flash de alta intensidade, faíscas radiais e anéis de fumaça cinza-escura expandindo.
-3. **Muzzle Flash & Smoke**: Clarão do disparo saindo da boca do cano da unidade atiradora.
-4. **Performance Impecável (60 FPS no Canvas)**:
-   - Integração direta no espaço do mundo do `BattleCanvas2D` (usando `<canvas>` com `requestAnimationFrame` que se move e dá zoom naturalmente com a câmera).
-   - Sem re-render desnecessário do React no loop de física das partículas.
+## Persona Ativa
+- **GameDevExpert** (`agents/GameDevExpert.md`) — Engenheiro de Software & TypeScript com foco em Canvas API, Vite e tipagem estrita.
 
 ---
 
-## 📋 Proposta de Alterações
+## Contexto e Diagnóstico
 
-### 🔹 1. Criação do Gerenciador de Efeitos Visuais de Combate (`CombatVfxCanvas.tsx`)
-- Renderizar em um `<canvas>` posicionado dentro do container de mundo do `BattleCanvas2D` (mesmas coordenadas de mundo `mapW` x `mapH`).
-- Implementar tipos de partículas e projéteis balísticos:
-  - `BulletTracer`: projétil com velocidade, comprimento de cauda, cor emissiva e bloom/glow.
-  - `ImpactSpark`: faíscas com física de dispersão em leque e desaceleração.
-  - `BloodSplatter`: partículas de impacto com tamanhos variados e esmaecimento suave.
-  - `ExplosionBlast`: onda de choque, fragmentos em alta velocidade e nuvem de fumaça volumétrica.
-  - `MuzzleFlash`: clarão cônico ou circular na posição do atacante.
-- Exportar uma API imperativa/ref (`triggerShotEffect(from, to, outcome, weaponType)` e `triggerExplosionEffect(x, y, radiusPx)`).
+Ao acessar a aplicação através da URL do GitHub Pages (`https://pierrespp.github.io/call-of-war/`), as imagens dos sprites na **Paleta de Sprites** do Editor de Mapas e na renderização do **Canvas de Tiles** aparecem vazias ou com ícone quebrado.
 
-### 🔹 2. Integração no `BattleCanvas2D.tsx` & Disparo nos Eventos de Combate (`App.tsx`)
-- Adicionar o `CombatVfxCanvas` dentro do container transformado de `BattleCanvas2D.tsx` (garantindo que partículas fiquem alinhadas perfeitamente ao mapa, zoom e pan da câmera).
-- Expor métodos para acionar efeitos visuais quando `shootUnit`, `throwGrenade`, `hailOfBullets`, `resolveGuardShot`, etc., forem executados com sucesso.
-- Gerar feedback visual imediato quando a resposta do tiro for recebida (ou nos logs de combate).
-
-### 🔹 3. Refinamento de Cores e Estética Tática (`UIUXMaster`)
-- Paleta emissiva:
-  - Balas Comuns / Assalto / Suporte: Dourado Âmbar `#f59e0b` com halo `#fbbf24`.
-  - Sniper: Ciano Elétrico `#06b6d4` com rastro penetrante `#22d3ee`.
-  - Escopeta / Granadeiro: Vermelho Fogo `#ef4444` e Laranja Intenso `#f97316`.
-  - Acerto em Armadura: Faíscas Brancas e Amarelas.
-  - Sangue: Carmesim Escuro `#dc2626` e `#991b1b`.
+### Causa Raiz Identificada
+1. No arquivo `public/tiles/urban/manifest.json`, os caminhos das imagens foram definidos com barra absoluta na raiz, por exemplo: `"/tiles/urban/asphalt_clean.svg"`.
+2. No componente `src/features/map-editor/components/MapEditorMenu.tsx`, as miniaturas da paleta (`<img src={tile.imagePath} />`) e o pré-carregamento em memória para o Canvas (`img.src = t.imagePath`) consom esses caminhos sem considerar o subcaminho base do repositório no GitHub Pages (`/call-of-war/`).
+3. Com isso, o navegador tenta carregar:
+   - `https://pierrespp.github.io/tiles/urban/asphalt_clean.svg` ➔ **404 Not Found**.
+   - Quando a URL correta no GitHub Pages é: `https://pierrespp.github.io/call-of-war/tiles/urban/asphalt_clean.svg` (que retorna **200 OK**).
+4. O mesmo comportamento ocorre em `DeployScreen.tsx` e `BattleCanvas2D.tsx` ao carregar tiles no Canvas de combate.
 
 ---
 
-## 🔒 Regras de Segurança
-- Nenhuma alteração nas regras do `firestore.rules`.
-- Zero interferência no cálculo matemático do backend (o visual acompanha os resultados reais de hit/crit/miss).
+## Proposta de Solução
+
+Adotar uma abordagem em camadas: **centralizada** e **defensiva**, garantindo que todos os assets estáticos funcionem tanto em ambiente de desenvolvimento local (`localhost:3000/`) quanto no GitHub Pages (`https://pierrespp.github.io/call-of-war/`), além de prevenir regressões se a aplicação for migrada para qualquer outro domínio ou subdiretório.
+
+### 1. Robustez da função utilitária `getImageUrl`
+No arquivo `src/lib/utils.ts`:
+- Tornar `getImageUrl(path: string)` **idempotente** (se a URL já começar com o base path, não duplicar).
+- Tratar URLs externas e protocolos especiais (`http://`, `https://`, `blob:`, `data:`).
+
+### 2. Normalização Centralizada em `BUILTIN_TILESETS`
+No arquivo `src/core/data/tilesets.ts`:
+- Mapear os tiles importados do manifesto garantindo que `tile.imagePath` seja normalizado com `getImageUrl(tile.imagePath)` logo na inicialização.
+
+### 3. Normalização na Geração de Lookup de Tiles
+No arquivo `src/utils/tilesetUtils.ts`:
+- Na função `createTileLookup()`, garantir que o lookup de tiles armazene o `imagePath` resolvido via `getImageUrl(tile.imagePath)`.
+
+### 4. Correção no Editor de Mapas
+No arquivo `src/features/map-editor/components/MapEditorMenu.tsx`:
+- Aplicar `getImageUrl(t.imagePath)` no pré-carregamento dos sprites de tiles no Canvas (`useEffect`).
+- Aplicar `getImageUrl(tile.imagePath)` na renderização das miniaturas da paleta (`<img src={getImageUrl(tile.imagePath)} />`).
+- Aplicar `getImageUrl(def.imagePath)` no gerador de layout tático urbano (`generateUrbanTacticalPreset`).
+
+### 5. Consistência em Telas de Deploy e Combate
+Nos arquivos `src/features/match-setup/components/DeployScreen.tsx` e `src/features/combat/components/BattleCanvas2D.tsx`:
+- Garantir que o pré-carregamento das imagens de tiles utilize `getImageUrl(tileDef.imagePath)`.
+
+### 6. Configuração do Base Path no Vite
+No arquivo `vite.config.ts`:
+- Adicionar detecção automática do base path para o ambiente do GitHub Actions (`process.env.GITHUB_ACTIONS`), usando o nome do repositório como fallback caso `VITE_BASE_PATH` não esteja explicitamente configurado no ambiente.
+
+---
+
+## Arquivos Afetados
+
+| Arquivo | Ação | Descrição |
+| :--- | :--- | :--- |
+| `src/lib/utils.ts` | MODIFY | Tornar `getImageUrl` idempotente e robusta contra repetições de prefixo. |
+| `src/core/data/tilesets.ts` | MODIFY | Normalizar URLs de imagem dos `BUILTIN_TILESETS`. |
+| `src/utils/tilesetUtils.ts` | MODIFY | Garantir resolução com `getImageUrl` em `createTileLookup`. |
+| `src/features/map-editor/components/MapEditorMenu.tsx` | MODIFY | Aplicar `getImageUrl` no pré-carregamento e miniaturas de sprites. |
+| `src/features/match-setup/components/DeployScreen.tsx` | MODIFY | Aplicar `getImageUrl` no pré-carregamento de tiles do Canvas. |
+| `src/features/combat/components/BattleCanvas2D.tsx` | MODIFY | Aplicar `getImageUrl` no pré-carregamento de tiles do Canvas. |
+| `vite.config.ts` | MODIFY | Suporte resiliente a base path automático em builds do GitHub Pages. |
+
+> **Nota de Segurança:** Nenhuma regra do Firebase Firestore (`firestore.rules`) será alterada nesta modificação.
+
+---
+
+## Plano de Verificação
+
+1. **Validação Estática e TypeScript**:
+   - Executar `npm run lint` (`tsc --noEmit`) para assegurar conformidade total sem erros de tipagem.
+2. **Build de Produção**:
+   - Rodar `npx vite build --base=/call-of-war/` e verificar que os assets e referências no `dist/` são gerados corretamente.
+3. **Verificação de Resolução de URLs**:
+   - Validar que caminhos de sprites resolvem para `/call-of-war/tiles/urban/...` no build de produção e para `/tiles/urban/...` no desenvolvimento local.

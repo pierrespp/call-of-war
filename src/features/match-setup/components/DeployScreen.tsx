@@ -106,7 +106,7 @@ export function DeployScreen({ roomId, playerToken, playerTeam, state, onLeave, 
 
       if (!tileImagesCache.current[tile.tileId]) {
         const img = new Image();
-        img.src = tileDef.imagePath;
+        img.src = getImageUrl(tileDef.imagePath);
         img.onload = () => {
           tileImagesCache.current[tile.tileId] = img;
           renderAllTiles();

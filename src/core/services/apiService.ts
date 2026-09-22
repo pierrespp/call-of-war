@@ -171,7 +171,7 @@ export const apiService = {
       method: "POST", body: JSON.stringify({ playerToken, unitId }),
     });
   },
-  async passUnitAction(roomId: string, playerToken: string, unitId: string, actionType: 'move' | 'tactical') {
+  async passUnitAction(roomId: string, playerToken: string, unitId: string, actionType: 'move' | 'tactical' | 'intervention') {
     return request<{ success: boolean; gameState: GameState }>(`/rooms/${roomId}/pass-action`, {
       method: "POST", body: JSON.stringify({ playerToken, unitId, actionType }),
     });

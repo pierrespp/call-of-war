@@ -1,8 +1,17 @@
 import { TileSet } from '../../types/tileset';
-import urbanManifest from '../../../public/tiles/urban/manifest.json';
+import { URBAN_TILESET_DATA } from './urbanManifest';
+import { getImageUrl } from '@/src/lib/utils';
+
+const normalizeTileSetPaths = (manifest: TileSet): TileSet => ({
+  ...manifest,
+  tiles: manifest.tiles.map(tile => ({
+    ...tile,
+    imagePath: getImageUrl(tile.imagePath),
+  })),
+});
 
 export const BUILTIN_TILESETS: TileSet[] = [
-  urbanManifest as TileSet,
+  normalizeTileSetPaths(URBAN_TILESET_DATA),
 ];
 
 export const DEFAULT_TILESET_ID = 'urban_ruins';

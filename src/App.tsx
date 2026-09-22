@@ -140,7 +140,7 @@ export default function App() {
     setRoomStateInternal,
     setGameStateInternal
   );
-  const isPveMode = roomState?.draft?.gameMode === 'pve';
+  const isPveMode = roomState?.draft?.gameMode === 'pve-zombies' || roomState?.draft?.gameMode === 'pve-tactical';
 
   // ── Polling ────────────────────────────────────────────────────────────────
   const fetchRoomState = useCallback(async () => {
@@ -161,13 +161,13 @@ export default function App() {
 
       // Phase transitions
       const phase = data.phase;
-      if (phase === 'draft' && appState !== 'createMatch' && appState !== 'lobby') {
+      if (phase === 'draft' && appState !== 'createMatch') {
         setAppState('createMatch');
-      } else if (phase === 'deploy' && appState !== 'deploy' && appState !== 'createMatch' && appState !== 'lobby') {
+      } else if (phase === 'deploy' && appState !== 'deploy' && appState !== 'createMatch') {
         setPhaseTransitioning('deploy');
         setAppState('deploy');
         setTimeout(() => setPhaseTransitioning(null), 200);
-      } else if (phase === 'active' && appState !== 'battle' && appState !== 'lobby') {
+      } else if (phase === 'active' && appState !== 'battle') {
         setPhaseTransitioning('battle');
         setAppState('battle');
         apiService.getMapCover(session.roomId, data.gameState.mapId)
@@ -237,10 +237,10 @@ export default function App() {
   }, [units, mapCoverConfig, gridWidth, gridHeight]);
 
   // ── Error helper ───────────────────────────────────────────────────────────
-  const withError = async (fn: () => Promise<unknown>) => {
+  const withError = async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
     setActionError(null);
-    try { await fn(); }
-    catch (e: unknown) { setActionError(e instanceof Error ? e.message : 'Erro desconhecido'); }
+    try { return await fn(); }
+    catch (e: unknown) { setActionError(e instanceof Error ? e.message : 'Erro desconhecido'); return undefined; }
   };
 
   // ── Action Handlers ────────────────────────────────────────────────────────

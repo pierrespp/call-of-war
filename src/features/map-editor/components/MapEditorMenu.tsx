@@ -12,6 +12,7 @@ import {
   AlertTriangle, Skull, LogOut, Copy, Check, ClipboardPaste, Layers, Palette, Wand2, UploadCloud
 } from "lucide-react";
 import { useImages } from '@/src/core/contexts/ImageContext';
+import { getImageUrl } from '@/src/lib/utils';
 
 interface BrushOption {
   id: CoverType;
@@ -113,7 +114,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
       set.tiles.forEach(t => {
         if (!tileImagesRef.current[t.id]) {
           const img = new Image();
-          img.src = t.imagePath;
+          img.src = getImageUrl(t.imagePath);
           img.onload = () => {
             tileImagesRef.current[t.id] = img;
             needsRedraw.current = true;
@@ -724,7 +725,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
                     >
                       <div className="w-9 h-9 rounded overflow-hidden flex items-center justify-center mb-1 bg-black/40">
                         <img
-                          src={tile.imagePath}
+                          src={getImageUrl(tile.imagePath)}
                           alt={tile.name}
                           className="w-full h-full object-contain"
                           style={{ transform: isSelected ? `rotate(${tileRotation}deg)` : undefined }}
@@ -765,7 +766,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
                       const def = tileLookup.current[t.tileId];
                       if (def && !tileImagesRef.current[t.tileId]) {
                         const img = new Image();
-                        img.src = def.imagePath;
+                        img.src = getImageUrl(def.imagePath);
                         img.onload = () => {
                           tileImagesRef.current[t.tileId] = img;
                           needsRedraw.current = true;

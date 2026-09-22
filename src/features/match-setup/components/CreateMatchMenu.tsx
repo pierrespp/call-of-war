@@ -467,15 +467,21 @@ export function CreateMatchMenu({
             <div className="inline-flex bg-white/5 p-1 rounded-2xl border border-white/10 backdrop-blur-md">
               <button
                 onClick={() => apiService.setDraftPveConfig(roomId, playerToken, { gameMode: "pvp", difficulty: state.draft.difficulty })}
-                className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${!isPve ? "bg-indigo-600 text-white shadow-lg" : "text-neutral-500 hover:text-neutral-300"}`}
+                className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${state.draft.gameMode === "pvp" || !state.draft.gameMode ? "bg-indigo-600 text-white shadow-lg" : "text-neutral-500 hover:text-neutral-300"}`}
               >
                 VERSUS (PVP)
               </button>
               <button
                 onClick={() => apiService.setDraftPveConfig(roomId, playerToken, { gameMode: "pve-zombies", difficulty: state.draft.difficulty })}
-                className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${isPve ? "bg-red-600 text-white shadow-lg" : "text-neutral-500 hover:text-neutral-300"}`}
+                className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${state.draft.gameMode === "pve-zombies" ? "bg-red-600 text-white shadow-lg" : "text-neutral-500 hover:text-neutral-300"}`}
               >
                 ZUMBIS (PVE)
+              </button>
+              <button
+                onClick={() => apiService.setDraftPveConfig(roomId, playerToken, { gameMode: "pve-tactical", difficulty: state.draft.difficulty })}
+                className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${state.draft.gameMode === "pve-tactical" ? "bg-amber-600 text-white shadow-lg" : "text-neutral-500 hover:text-neutral-300"}`}
+              >
+                TÁTICO (PVE)
               </button>
             </div>
           </div>
@@ -484,10 +490,12 @@ export function CreateMatchMenu({
         {isPve ? (
           <div className="mb-10 mt-4">
             <h1 className="text-5xl font-black text-center text-white mb-2 uppercase tracking-tighter italic text-shadow-glow">
-              Operação: <span className="text-red-500">Sobrevivência</span>
+              Operação: <span className={state.draft.gameMode === "pve-tactical" ? "text-amber-500" : "text-red-500"}>
+                {state.draft.gameMode === "pve-tactical" ? "Fuga Silenciosa" : "Sobrevivência"}
+              </span>
             </h1>
             <p className="text-center text-neutral-500 text-xs uppercase tracking-[0.3em] font-bold mb-8">
-              Protocolo de Extermínio // Setor Tático
+              {state.draft.gameMode === "pve-tactical" ? "Infiltração Tática // Setor Hostil" : "Protocolo de Extermínio // Setor Tático"}
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

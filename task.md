@@ -1,6 +1,8 @@
-# Tarefas de Execução — Efeitos de Partículas, Impacto e Trajetórias de Tiros com Glow
+# Tarefas de Execução — Correção de Sprites no Editor de Mapas (GitHub Pages)
 
-- [x] Etapa 1: Criar o componente `CombatVfxCanvas.tsx` com motor de partículas 2D (Tracers balísticos, Muzzle Flash, Sparks, Blood Splatter, Ondas de Choque e Explosões) <!-- id: 0 -->
-- [x] Etapa 2: Integrar o `CombatVfxCanvas` dentro de `BattleCanvas2D.tsx` na camada de efeitos visuais do mundo <!-- id: 1 -->
-- [x] Etapa 3: Conectar os disparos visuais em `App.tsx` para acionar os efeitos de disparo e explosão nas ações de combate <!-- id: 2 -->
-- [x] Etapa 4: Validação com `compile_applet` e atualização de `expertise/FALTA_FAZER.md` e `walkthrough.md` <!-- id: 3 -->
+- [x] Etapa 1: Atualizar `src/lib/utils.ts` para tornar `getImageUrl` idempotente e suportar base path do Vite <!-- id: 0 -->
+- [x] Etapa 2: Atualizar `src/core/data/tilesets.ts` e `src/utils/tilesetUtils.ts` para resolver os caminhos de sprites com `getImageUrl` <!-- id: 1 -->
+- [x] Etapa 3: Atualizar `src/features/map-editor/components/MapEditorMenu.tsx` para usar `getImageUrl` no pré-carregamento e nas miniaturas <!-- id: 2 -->
+- [x] Etapa 4: Atualizar `src/features/match-setup/components/DeployScreen.tsx` e `src/features/combat/components/BattleCanvas2D.tsx` <!-- id: 3 -->
+- [x] Etapa 5: Atualizar `vite.config.ts` para detecção automática resiliente do base path em builds do GitHub Actions <!-- id: 4 -->
+- [x] Etapa 6: Validação estática (`npm run lint`), build de produção com base `/call-of-war/` e atualização da documentação <!-- id: 5 -->

@@ -2,7 +2,7 @@ import React from 'react';
 import { Shield, ShieldHalf } from 'lucide-react';
 import { Unit, MapCoverData, CoverType, GameState } from '@/src/types/game';
 import { CELL_SIZE } from '@/src/core/data/constants';
-import { cn } from '@/src/lib/utils';
+import { cn, getImageUrl } from '@/src/lib/utils';
 import { ReachableCell, PathStep, reconstructPath } from '@/src/features/combat/utils/pathfinding';
 import { FOVOverlay } from './FOVOverlay';
 import { UnitToken2D } from './UnitToken2D';
@@ -212,7 +212,7 @@ export const BattleCanvas2D: React.FC<BattleCanvas2DProps> = ({
 
       if (!tileImagesCache.current[tile.tileId]) {
         const img = new Image();
-        img.src = tileDef.imagePath;
+        img.src = getImageUrl(tileDef.imagePath);
         img.onload = () => {
           tileImagesCache.current[tile.tileId] = img;
           renderAllTiles();

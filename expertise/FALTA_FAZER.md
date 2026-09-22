@@ -35,6 +35,15 @@
 - [x] **Correção de Ações de Combate (Frontend)**: Resolvido bug onde os botões "Mover" e "Atirar" estavam desabilitados devido a divergência nos nomes das propriedades `actions` (`movement` -> `move` e `shooting` -> `intervention`).
 - [x] **Clarificação de Slots de Armas**: Documentada e explicada a mecânica de `slots` (capacidade de acessórios) para o usuário.
 - [x] **Correção Estrutural de Scroll**: Implementação de altura fixa (`h-screen`) no `ScreenWrapper` e remoção de `justify-center` para permitir rolagem fluida em telas longas sem depender do scroll global do navegador.
-- [x] **Sincronização e Polling Tático**: Implementação de guardas no pooling para evitar transições automáticas de fase (efeito 'ímã') enquanto o usuário está no Lobby, garantindo controle manual da navegação.
 - [x] **Restauração de Modos de Jogo**: Re-implementado o seletor de modo (PvP vs PvE Zumbis) na tela de criação de partida, permitindo ao Jogador A alternar operações táticas.
 - [x] **Estabilização de Texturas 3D**: Resolvido crash `Could not load : undefined` no Canvas ao iniciar partidas. Implementada normalização via `getRoleImage` e guardas de validade no componente `Unit3D`.
+- [x] **Automação de Testes E2E (Playwright) & Chrome Remote Debugging**: Configurado Playwright com Chromium e script de depuração remota do Chrome na porta 9222. Bateria de testes `tests/e2e-game-modes.spec.ts` executada com sucesso completando 10 rodadas em todos os 3 modos de jogo (PvP, PvE Zumbis e PvE Tático) (QATester).
+
+## Correções Realizadas a Partir dos Testes E2E (Concluídas)
+- [x] **Correção do Retorno à Batalha Ativa no Lobby**: Removida a trava `&& appState !== 'lobby'` em `App.tsx`, permitindo reconexão instantânea para qualquer jogador com partida ativa ao atualizar a página.
+- [x] **Correção de Ação para Disparo da IA Tática**: Atualizado `usePveEngine.ts`, `server.ts` e `apiService.ts` para validar e consumir `actions.intervention` em vez de `tactical`, suportando `/pass-action` com `intervention`.
+- [x] **Detecção de Modos PvE no HUD de Batalha**: Atualizado `isPveMode` em `App.tsx` para cobrir `'pve-zombies'` e `'pve-tactical'`, reativando os botões de radar (revelar mapa) e painel PvE.
+- [x] **Adição do Modo "Tático (PVE)" no Menu de Draft**: Adicionado botão "TÁTICO (PVE)" com suporte à Operação Fuga Silenciosa em `CreateMatchMenu.tsx` com paleta âmbar temática e textos operacionais.
+- [x] **Tipagem Estrita de withError**: Corrigida a função genérica `withError<T>` em `App.tsx` para retornar o resultado de chamadas da API sem erros de compilador TypeScript (`npm run lint` 100% limpo).
+- [x] **Correção de Resolução de Sprites no GitHub Pages**: Resolvido problema em que sprites modulares do Editor de Mapas e telas de Deploy/Combate apareciam sem imagem (404 Not Found) ao hospedar no subcaminho `/call-of-war/`. A função `getImageUrl` foi tornada idempotente, resiliente a ambientes Node e Vite, `BUILTIN_TILESETS` e `createTileLookup` normalizam caminhos na fonte, e `MapEditorMenu.tsx`, `DeployScreen.tsx` e `BattleCanvas2D.tsx` foram atualizados para aplicar `getImageUrl`. Também foi extraído `urbanManifest.ts` para eliminar avisos de importação estática do diretório `public/` (GameDevExpert).
+

@@ -23,3 +23,7 @@ firestore-debug.log
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright
+playwright-report/
+test-results/

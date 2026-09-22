@@ -7,11 +7,29 @@ export function cn(...inputs: ClassValue[]) {
 
 export function getImageUrl(path: string) {
   if (!path) return "";
-  if (path.startsWith("data:")) return path;
-  if (path.startsWith("http")) return path;
-  const base = import.meta.env.BASE_URL || "/";
-  // Evita barras duplas, ex se base for / e path for /maps/...
-  return `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+  if (
+    path.startsWith("data:") ||
+    path.startsWith("blob:") ||
+    path.startsWith("http://") ||
+    path.startsWith("https://")
+  ) {
+    return path;
+  }
+  const base =
+    (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.BASE_URL)
+      ? import.meta.env.BASE_URL
+      : (typeof process !== "undefined" && process.env && process.env.VITE_BASE_PATH)
+        ? process.env.VITE_BASE_PATH
+        : "/";
+  const cleanBase = base.replace(/\/$/, "");
+
+  // Se o caminho já inclui o base path (ex: /call-of-war/tiles/...), evita duplicações
+  if (cleanBase && (path === cleanBase || path.startsWith(`${cleanBase}/`))) {
+    return path;
+  }
+
+  const cleanPath = path.replace(/^\//, "");
+  return cleanBase ? `${cleanBase}/${cleanPath}` : `/${cleanPath}`;
 }
 
 /**

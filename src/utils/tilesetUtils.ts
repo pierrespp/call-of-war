@@ -1,5 +1,6 @@
 import { TileSet, TileDefinition, MapTileData } from '../types/tileset';
 import { MapCoverData, CoverType } from '../types/game';
+import { getImageUrl } from '@/src/lib/utils';
 
 /**
  * Deriva o MapCoverData a partir do MapTileData e do conjunto de tilesets disponíveis.
@@ -41,7 +42,10 @@ export function createTileLookup(tilesets: TileSet[]): Record<string, TileDefini
   const lookup: Record<string, TileDefinition> = {};
   for (const set of tilesets) {
     for (const tile of set.tiles) {
-      lookup[tile.id] = tile;
+      lookup[tile.id] = {
+        ...tile,
+        imagePath: getImageUrl(tile.imagePath),
+      };
     }
   }
   return lookup;
