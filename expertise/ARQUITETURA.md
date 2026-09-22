@@ -17,8 +17,14 @@ Sistema de Virtual Tabletop (VTT) tático baseado em turnos para simular combate
 
 ### Backend
 - **Express.js** com TypeScript
-- **tsx** para execução de TypeScript no Node
-- Servidor integrado com Vite em desenvolvimento
+- **tsx** para execução de TypeScript no Node em desenvolvimento
+- **esbuild** para empacotamento em CommonJS (`dist/server.cjs`) para produção
+- Servidor integrado com middleware Vite em desenvolvimento
+
+### Infraestrutura & Deploy Dual (Produção)
+- **Frontend SPA:** Hospedado no **GitHub Pages** (`https://pierrespp.github.io/call-of-war/`), com build automatizado via GitHub Actions.
+- **Backend API:** Hospedado no **Render** (Web Service Node.js), escutando em porta dinâmica (`process.env.PORT`) com CORS habilitado para o GitHub Pages.
+- **Banco de Dados & Storage:** Firebase Firestore para persistência global de salas, coberturas e metadados.
 
 ---
 

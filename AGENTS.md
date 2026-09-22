@@ -7,12 +7,18 @@ Você é engenheiro de jogos especialista em adaptações de boardgames com foco
 - Sempre que identificar uma melhoria ou necessidade de mudança, pergunte: "Posso aplicar essa alteração?" e explique brevemente o porquê.
 - Se houver qualquer ambiguidade no pedido do usuário, peça clarificação antes de tocar no código.
 - **Toda vez que houver alteração no arquivo `firestore.rules`, o usuário DEVE ser avisado explicitamente.**
+- **ARQUITETURA DE DEPLOY DUAL OBRIGATÓRIA (GitHub Pages + Render):**
+  - O projeto opera em dois ambientes integrados:
+    1. **Frontend:** Hospedado no **GitHub Pages** (base path `/call-of-war/`), publicado via GitHub Actions (`.github/workflows/deploy.yml`). Acesso a assets estáticos DEVE usar o helper `getImageUrl(path)`. Comunicação com a API via `VITE_API_URL`.
+    2. **Backend:** Hospedado no **Render** como Web Service Node.js executando `dist/server.cjs` com porta dinâmica (`process.env.PORT`) e CORS flexível (`.onrender.com`, `.github.io`). O script de build no `package.json` deve sempre garantir a instalação das dependências antes de compilar (`npm install --include=dev && vite build && esbuild ...`).
+  - **Regra de Ouro:** Qualquer alteração em scripts de build, dependências, imports de assets, CORS, rotas de API ou arquivos estáticos **DEVE OBRIGATORIAMENTE manter compatibilidade simultânea com o GitHub Pages e com o Render**. Nunca quebre um ambiente para fazer o outro funcionar.
 
 ---
 
 # CONTEXTO TÉCNICO
 - **Foco:** Desenvolvimento de VTT (React/TypeScript, Canvas API, Firebase Firestore, WebRTC).
 - **Objetivo:** Código performático, modular e de fácil manutenção.
+- **Topologia de Produção:** Frontend no GitHub Pages ↔ Backend API no Render ↔ Firestore Database.
 - **Exigência Base:** Antes de alterar qualquer sistema vital, **LEIA** os arquivos em `/expertise/` correspondentes. O sistema de pastas em `expertise/` serve como regra estrita a não ser violada para proteção e balanceamento da engine.
 
 ## Mapa de Expertise por Sistema

@@ -198,6 +198,62 @@ service cloud.firestore {
 
 ---
 
+## 🌐 Deploy em Produção (Arquitetura Dual: GitHub Pages + Render)
+
+O Call of War VTT funciona com uma divisão estrita entre Frontend e Backend em produção:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       PRODUÇÃO                              │
+│                                                             │
+│   ┌───────────────────────────┐   REST API    ┌──────────┐  │
+│   │       GitHub Pages        │ ────────────> │  Render  │  │
+│   │ (SPA React / Estáticos)   │ <──────────── │ (Server) │  │
+│   └───────────────────────────┘    CORS OK    └──────────┘  │
+│                 │                                   │       │
+│                 └─────────────┐       ┌─────────────┘       │
+│                               ▼       ▼                     │
+│                        ┌────────────────────┐               │
+│                        │ Firestore / Storage│               │
+│                        └────────────────────┘               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 1. Frontend: GitHub Pages
+- **Repositório:** Deploy automatizado pelo GitHub Actions via `.github/workflows/deploy.yml`.
+- **Trigger:** Push na branch `main`.
+- **Base Path:** `/call-of-war/` (configurado via `VITE_BASE_PATH`).
+- **Comunicação com API:** O frontend obtém a URL do backend através da variável de ambiente `VITE_API_URL` (definida nos Secrets do GitHub Actions e em `.env`).
+- **Assets e Imagens:** Todos os caminhos de imagens locais DEVEM passar pela função `getImageUrl(path)` em `src/lib/utils.ts` para que o prefixo `/call-of-war/` seja aplicado no GitHub Pages sem quebrar em localhost ou no Render.
+
+### 2. Backend: Render (Web Service)
+- **Tipo de Serviço:** Web Service (Node.js).
+- **Branch:** `main`.
+- **Runtime:** Node.js 20 LTS (especificado via `.node-version`).
+- **Build Command:**
+  ```bash
+  npm run build
+  ```
+  *(Nota: O script `build` no `package.json` já executa `npm install --include=dev` internamente para garantir que dependências como `vite` e `esbuild` existam no container de build do Render).*
+- **Start Command:**
+  ```bash
+  npm start
+  ```
+  *(Executa `node dist/server.cjs`).*
+- **Porta Dinâmica (`PORT`):** O `server.ts` obrigatoriamente escuta em `Number(process.env.PORT) || 3000`. O Render injeta dinamicamente a porta (ex: `10000`).
+- **CORS:** O servidor permite dinamicamente requisições vindas de `*.github.io`, `*.onrender.com` e `localhost`.
+- **Arquivos Estáticos no Servidor:** O servidor também é capaz de servir os estáticos do `dist/` e as imagens dinâmicas geradas em `data/maps/`.
+
+### ⚠️ Cuidados Obrigatórios para Qualquer Desenvolvedor / Agente:
+1. **Nunca quebre o build do Vite:** O GitHub Pages depende de `npm run build` gerando arquivos na pasta `dist/`.
+2. **Nunca use `__dirname` direto com `import.meta.url` no `server.ts`:** O backend é compilado com esbuild para CommonJS (`dist/server.cjs`), onde `import.meta.url` é `undefined`. Sempre utilize a constante `rootDir` compatível.
+3. **Nunca fixe a porta como 3000 sem fallback para `process.env.PORT`:** Isso derrubará o serviço no Render por timeout.
+4. **Sempre teste os dois modos se alterar o build:**
+   - Modo Dev: `npm run dev` (Vite middleware + tsx).
+   - Modo Produção: `npm run build && node dist/server.cjs` (CommonJS estático).
+
+---
+
 ## 📚 Documentação Adicional
 
 - [DEPLOY_GUIDE.md](./DEPLOY_GUIDE.md) - Guia completo de deploy
