@@ -693,7 +693,30 @@ async function startServer() {
   app.use(express.json({ limit: "500mb" }));
   app.use(express.urlencoded({ limit: "500mb", extended: true }));
 
+  // ── CORS ─────────────────────────────────────────────────────────────────────
+  const ALLOWED_ORIGINS = [
+    "https://pierrespp.github.io",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:5174",
+  ];
+  app.use((req, res, next) => {
+    const origin = req.headers.origin ?? "";
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    }
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    if (req.method === "OPTIONS") {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
+
   // ── Room Management ──────────────────────────────────────────────────────────
+
 
   app.post("/api/rooms", async (req, res) => {
     const { playerName, gameMode } = req.body;
