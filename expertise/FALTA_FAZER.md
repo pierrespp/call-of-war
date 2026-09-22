@@ -54,4 +54,7 @@
 - [x] **Hidratação e Fallback no Servidor (`server.ts`)**: Adicionado fallback para `CANONICAL_MAP_DATA` nas rotas `/api/maps/:mapId/tiles`, `/api/maps/:mapId/cover`, `/api/maps/:mapId/grid-settings` e na função `getRoomCover`, assegurando consistência total para combate e editor.
 - [x] **Validação Integral**: Testes unitários de regras táticas executados com 100% de sucesso, verificação visual via subagente de browser cobrindo os 3 mapas e paletas no editor, e bateria de testes E2E do Playwright passando com 4/4 testes aprovados.
 
-
+## Estabilização de Assets e Editor de Mapas (Concluído)
+- [x] **Autocentralização da Câmera no Editor de Mapas (`MapEditorMenu.tsx`)**: Eliminado o comportamento de "tela preta" onde a câmera iniciava e resetava em `(0, 0)` ao trocar de mapa. Implementada a função `centerCameraOnMap` com enquadramento proporcional ao container e botões flutuantes de Centralização e Zoom (GameDevExpert / UIUXMaster).
+- [x] **Restauração de Imagens Binárias Corrompidas**: Identificada corrupção de encoding UTF-8 (`efbfbd`) nos arquivos de `public/maps/` (`acampamento.jpg`, `cidade_ruinas.jpg`, `selva_rio.jpg`) e `public/roles/` (`assalto.png`, etc.). Os binários originais válidos (`89504e47`) foram restaurados em modo binário puro a partir da pasta limpa do projeto.
+- [x] **Compatibilidade Universal de Assets (GitHub Pages + Render)**: Atualizado `MapContext.tsx`, `BattleCanvas2D.tsx`, `DeployScreen.tsx`, `CreateMatchMenu.tsx` e `MapEditorMenu.tsx` para garantir o uso de `getImageUrl` e `VITE_API_URL`, assegurando carregamento correto tanto no subdiretório `/call-of-war/` do GitHub Pages quanto no servidor Express no Render.
