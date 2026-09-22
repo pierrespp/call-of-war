@@ -807,9 +807,10 @@ export const SKILLS: Record<string, Skill> = {
 export interface GameMap {
   id: string;
   name: string;
-  imagePath: string;
+  imagePath?: string;
   gridWidth: number;
   gridHeight: number;
+  tilesetId?: string;
 }
 
 /**
@@ -837,28 +838,28 @@ export const MAPS: Record<string, GameMap> = {
   'cidade_ruinas': {
     id: 'cidade_ruinas',
     name: 'Cidade em Ruínas',
-    imagePath: '/maps/cidade_ruinas.jpg',
+    tilesetId: 'urban_ruins',
     gridWidth: 40,
     gridHeight: 40
   },
   'selva_rio': {
     id: 'selva_rio',
     name: 'Selva com Rio',
-    imagePath: '/maps/selva_rio.jpg',
+    tilesetId: 'nature_jungle',
     gridWidth: 40,
     gridHeight: 40
   },
   'acampamento': {
     id: 'acampamento',
     name: 'Acampamento na Floresta',
-    imagePath: '/maps/acampamento.jpg',
+    tilesetId: 'military_camp',
     gridWidth: 40,
     gridHeight: 40
   },
   'silent_run': {
     id: 'silent_run',
     name: 'Operação Fuga Silenciosa',
-    imagePath: '/maps/city_street.jpg',
+    tilesetId: 'urban_ruins',
     gridWidth: 40,
     gridHeight: 80
   }

@@ -20,7 +20,6 @@ import {
   AlertTriangle, Skull, LogOut, Copy, Check, ClipboardPaste, Layers, Palette, Wand2, UploadCloud,
   Maximize2, ZoomIn, ZoomOut
 } from "lucide-react";
-import { useImages } from '@/src/core/contexts/ImageContext';
 import { getImageUrl } from '@/src/lib/utils';
 
 interface BrushOption {
@@ -64,7 +63,6 @@ type ToolMode = "tile" | "cover" | "pan";
 
 export function MapEditorMenu({ onBack }: { onBack: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { getMapImage } = useImages();
   const { maps, loading: mapsLoading } = useMaps();
   const [selectedMap, setSelectedMap] = useState<string>("");
 
@@ -75,7 +73,6 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
   const isDraggingRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapImageRef = useRef<HTMLImageElement | null>(null);
   const tileImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const needsRedraw = useRef(true);
 
@@ -224,20 +221,8 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
           setActiveTileSetId('urban_ruins');
         }
 
-        // Load background map image
-        const imgUrl = getMapImage(selectedMap);
-        if (imgUrl) {
-          const img = new Image();
-          img.src = imgUrl;
-          img.onload = () => {
-            mapImageRef.current = img;
-            centerCameraOnMap(selectedMap);
-            needsRedraw.current = true;
-          };
-        } else {
-          mapImageRef.current = null;
-        }
         centerCameraOnMap(selectedMap);
+        needsRedraw.current = true;
       } catch (err) {
         console.error("Failed to fetch map data:", err);
       } finally {
@@ -248,7 +233,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
     };
     
     fetchData();
-  }, [selectedMap, getMapImage, centerCameraOnMap]);
+  }, [selectedMap, centerCameraOnMap]);
 
   const mapInfo = selectedMap ? maps[selectedMap] : null;
   const validation = validateDeployZones(coverData);
@@ -294,13 +279,9 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
       const gridW = mapInfo.gridWidth * cellSize;
       const gridH = mapInfo.gridHeight * cellSize;
 
-      // 1. Draw Map Background (se existir)
-      if (mapImageRef.current) {
-        ctx.drawImage(mapImageRef.current, 0, 0, mapW, mapH);
-      } else {
-        ctx.fillStyle = "#1e2024";
-        ctx.fillRect(0, 0, gridW, gridH);
-      }
+      // 1. Base Tática Militar (Substrato limpo para os sprites)
+      ctx.fillStyle = "#121418";
+      ctx.fillRect(0, 0, gridW, gridH);
 
       // 2. Render Tile Layer (Sprites & Presets Modulares)
       const currentTiles = tileDataRef.current;

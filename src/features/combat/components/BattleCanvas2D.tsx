@@ -276,16 +276,6 @@ export const BattleCanvas2D: React.FC<BattleCanvas2DProps> = ({
           backgroundColor: '#111827',
         }}
       >
-        {/* Map image background (se existir) */}
-        {mapDef && (
-          <img
-            src={getImageUrl(mapDef.imagePath)}
-            alt={mapDef.name}
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-            style={{ zIndex: 0 }}
-          />
-        )}
-
         {/* Tile layers (Sprites Modulares do Mapa renderizados em Canvas único de alta performance) */}
         <canvas
           ref={tileCanvasRef}

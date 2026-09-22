@@ -431,19 +431,18 @@ export function CreateMatchMenu({
 
   return (
     <div className="relative w-full text-neutral-200 p-4 md:p-8 flex flex-col items-center font-sans">
-      {/* Dynamic Map Background */}
+      {/* Tactical Ambient Military Background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         <div 
-          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 scale-105"
+          className="absolute inset-0 bg-neutral-950"
           style={{ 
-            backgroundImage: maps[selectedMap]?.imagePath ? `url(${getImageUrl(maps[selectedMap].imagePath)})` : "",
-            filter: "brightness(1.2) contrast(1.1) saturate(1.1)"
+            backgroundImage: `radial-gradient(ellipse at 50% 20%, ${playerTeam === "A" ? "rgba(79, 70, 229, 0.15)" : "rgba(234, 88, 12, 0.15)"} 0%, transparent 70%), linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px)`,
+            backgroundSize: '100% 100%, 40px 40px, 40px 40px'
           }}
         />
-        {/* Subtle vignette instead of full dark overlay */}
         <div 
           className="absolute inset-0" 
-          style={{ background: "radial-gradient(circle, transparent 50%, rgba(0,0,0,0.3) 100%)" }}
+          style={{ background: "radial-gradient(circle, transparent 40%, rgba(0,0,0,0.6) 100%)" }}
         />
       </div>
 

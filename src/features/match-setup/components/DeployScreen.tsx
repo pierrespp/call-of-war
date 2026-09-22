@@ -354,16 +354,6 @@ export function DeployScreen({ roomId, playerToken, playerTeam, state, onLeave, 
             placeOrSwap(gx, gy);
           }}
         >
-          {/* Map image background (se existir) */}
-          {mapInfo.imagePath && (
-            <img
-              src={getImageUrl(mapInfo.imagePath)}
-              alt={`Map ${mapInfo.name}`}
-              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-              style={{ zIndex: 0 }}
-            />
-          )}
-
           {/* Tile layers (Sprites Modulares do Mapa renderizados em Canvas único) */}
           <canvas
             ref={tileCanvasRef}
