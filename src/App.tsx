@@ -163,7 +163,7 @@ export default function App() {
       const phase = data.phase;
       if (phase === 'draft' && appState !== 'createMatch') {
         setAppState('createMatch');
-      } else if (phase === 'deploy' && appState !== 'deploy' && appState !== 'createMatch') {
+      } else if (phase === 'deploy' && appState !== 'deploy') {
         setPhaseTransitioning('deploy');
         setAppState('deploy');
         setTimeout(() => setPhaseTransitioning(null), 200);

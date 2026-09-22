@@ -38,7 +38,10 @@ export interface PlayerSession {
   sandboxTokens?: { A: string; B: string };
 }
 
-const BASE = (import.meta.env.VITE_API_URL ?? "") + "/api";
+const RENDER_FALLBACK_URL = "https://call-of-war-puh9.onrender.com";
+const rawApiUrl = (import.meta.env.VITE_API_URL ?? "").trim() || (import.meta.env.PROD ? RENDER_FALLBACK_URL : "");
+const sanitizedApiUrl = rawApiUrl.replace(/\/+$/, "");
+const BASE = `${sanitizedApiUrl}/api`;
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
