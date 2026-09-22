@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#302b20"/>
+  <!-- Sombra da tenda -->
+  <polygon points="4,48 46,48 48,12 2,12" fill="#12100b" opacity="0.6"/>
+  <!-- Base da tenda de campanha militar com cumeeira central -->
+  <polygon points="5,44 25,6 45,44" fill="#4d533c" stroke="#2b2f21" stroke-width="1.2"/>
+  <!-- Face esquerda iluminada -->
+  <polygon points="5,44 25,6 25,44" fill="#585f44"/>
+  <!-- Face direita sombreada -->
+  <polygon points="25,6 45,44 25,44" fill="#3f4430"/>
+  <!-- Entrada triangular aberta da tenda (abertura escura) -->
+  <polygon points="19,44 25,24 31,44" fill="#1b1c15" stroke="#12130e" stroke-width="0.8"/>
+  <!-- Cordas de fixação e estacas nos cantos -->
+  <line x1="5" y1="44" x2="1" y2="48" stroke="#7a6c53" stroke-width="1"/>
+  <line x1="45" y1="44" x2="49" y2="48" stroke="#7a6c53" stroke-width="1"/>
+  <circle cx="1" cy="48" r="1.2" fill="#2d281e"/>
+  <circle cx="49" cy="48" r="1.2" fill="#2d281e"/>
+  <!-- Marcação militar tática na lona (estrela militar/numeração) -->
+  <polygon points="15,28 16,31 19,31 16.5,33 17.5,36 15,34 12.5,36 13.5,33 11,31 14,31" fill="#c4c9b1" opacity="0.7"/>
+</svg>

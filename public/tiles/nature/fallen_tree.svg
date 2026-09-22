@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#252b1e"/>
+  <!-- Sombra projetada do tronco -->
+  <path d="M 6 36 L 44 14 L 46 22 L 8 44 Z" fill="#0d110a" opacity="0.6"/>
+  <!-- Corpo do tronco caído na diagonal -->
+  <path d="M 5 30 L 41 8 L 47 18 L 11 40 Z" fill="#5c4224" stroke="#332412" stroke-width="1.2"/>
+  <!-- Textura da casca de madeira -->
+  <line x1="12" y1="28" x2="38" y2="13" stroke="#45311a" stroke-width="1.5"/>
+  <line x1="16" y1="35" x2="42" y2="20" stroke="#755631" stroke-width="1"/>
+  <!-- Seção transversal do tronco cortado/quebrado (extremidade) -->
+  <ellipse cx="8" cy="35" rx="5" ry="6" fill="#8f6b3e" stroke="#332412" stroke-width="1"/>
+  <circle cx="8" cy="35" r="2.5" fill="none" stroke="#664b28" stroke-width="0.8"/>
+  <circle cx="8" cy="35" r="1" fill="#4a361c"/>
+  <!-- Galhos partidos e folhas brotando -->
+  <line x1="26" y1="17" x2="22" y2="9" stroke="#45311a" stroke-width="2"/>
+  <circle cx="21" cy="8" r="3" fill="#4d9639"/>
+  <circle cx="34" cy="23" r="2.5" fill="#3c792b"/>
+</svg>

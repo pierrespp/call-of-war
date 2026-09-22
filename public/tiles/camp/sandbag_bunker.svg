@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#2d2920"/>
+  <!-- Sombra do bunker -->
+  <rect x="4" y="6" width="42" height="40" rx="4" fill="#12100c" opacity="0.6"/>
+  <!-- Trincheira interna / poço do atirador -->
+  <rect x="14" y="16" width="22" height="18" fill="#1e1b15" stroke="#12100c" stroke-width="1"/>
+  <!-- Paredão frontal reforçado de sacos de areia -->
+  <ellipse cx="14" cy="10" rx="9" ry="5" fill="#a89066" stroke="#544730" stroke-width="1"/>
+  <ellipse cx="26" cy="9" rx="9" ry="5.5" fill="#ba9f72" stroke="#544730" stroke-width="1"/>
+  <ellipse cx="37" cy="10" rx="9" ry="5" fill="#9e855c" stroke="#544730" stroke-width="1"/>
+  <!-- Paredão lateral esquerdo -->
+  <ellipse cx="9" cy="20" rx="6" ry="8" fill="#a0875e" stroke="#544730" stroke-width="1"/>
+  <ellipse cx="9" cy="32" rx="6" ry="8" fill="#947c55" stroke="#544730" stroke-width="1"/>
+  <!-- Paredão lateral direito -->
+  <ellipse cx="41" cy="20" rx="6" ry="8" fill="#9e855c" stroke="#544730" stroke-width="1"/>
+  <ellipse cx="41" cy="32" rx="6" ry="8" fill="#a89066" stroke="#544730" stroke-width="1"/>
+  <!-- Traseira com sacos de proteção parcial -->
+  <ellipse cx="16" cy="41" rx="8" ry="5" fill="#8f7751" stroke="#4a3e29" stroke-width="1"/>
+  <ellipse cx="34" cy="41" rx="8" ry="5" fill="#998159" stroke="#4a3e29" stroke-width="1"/>
+  <!-- Camuflagem de rede / folhagem sobre o bunker -->
+  <path d="M 12 7 Q 25 14, 38 7" fill="none" stroke="#4a5d34" stroke-width="1.5" stroke-dasharray="2,2"/>
+</svg>

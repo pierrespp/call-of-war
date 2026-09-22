@@ -1,8 +1,8 @@
-# Tarefas de Execução — Correção de Sprites no Editor de Mapas (GitHub Pages)
+# Tarefas de Execução — Criação Temática dos 3 Mapas no Editor
 
-- [x] Etapa 1: Atualizar `src/lib/utils.ts` para tornar `getImageUrl` idempotente e suportar base path do Vite <!-- id: 0 -->
-- [x] Etapa 2: Atualizar `src/core/data/tilesets.ts` e `src/utils/tilesetUtils.ts` para resolver os caminhos de sprites com `getImageUrl` <!-- id: 1 -->
-- [x] Etapa 3: Atualizar `src/features/map-editor/components/MapEditorMenu.tsx` para usar `getImageUrl` no pré-carregamento e nas miniaturas <!-- id: 2 -->
-- [x] Etapa 4: Atualizar `src/features/match-setup/components/DeployScreen.tsx` e `src/features/combat/components/BattleCanvas2D.tsx` <!-- id: 3 -->
-- [x] Etapa 5: Atualizar `vite.config.ts` para detecção automática resiliente do base path em builds do GitHub Actions <!-- id: 4 -->
-- [x] Etapa 6: Validação estática (`npm run lint`), build de produção com base `/call-of-war/` e atualização da documentação <!-- id: 5 -->
+- [x] Etapa 1: Criar novos sprites SVG modulares para Selva & Rio (`public/tiles/nature/`) e Acampamento Militar (`public/tiles/camp/`) <!-- id: 0 -->
+- [x] Etapa 2: Criar manifestos TypeScript `natureManifest.ts`, `campManifest.ts` e registrar em `tilesets.ts` <!-- id: 1 -->
+- [x] Etapa 3: Implementar geradores táticos em `tilesetUtils.ts` e dados canônicos em `defaultMapsData.ts` <!-- id: 2 -->
+- [x] Etapa 4: Atualizar `MapEditorMenu.tsx` com suporte aos novos tilesets e botões de layout temático <!-- id: 3 -->
+- [x] Etapa 5: Atualizar `server.ts` para hidratar os mapas padrão como baseline com persistência e fallback <!-- id: 4 -->
+- [x] Etapa 6: Validação completa (`npm run lint`, verificação de deploy zones, teste no browser com `browser_subagent` e testes E2E) <!-- id: 5 -->

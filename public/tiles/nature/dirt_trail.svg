@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#3a2f20"/>
+  <!-- Textura de solo orgânico e cascalho -->
+  <path d="M0 12 Q 15 8, 30 14 T 50 10 L 50 40 Q 35 44, 20 38 T 0 42 Z" fill="#4d3f2b" opacity="0.6"/>
+  <circle cx="12" cy="18" r="1.5" fill="#2b2216"/>
+  <circle cx="28" cy="24" r="1.2" fill="#5c4c35"/>
+  <circle cx="38" cy="15" r="1.8" fill="#2b2216"/>
+  <circle cx="19" cy="36" r="1.4" fill="#5c4c35"/>
+  <circle cx="42" cy="38" r="1.6" fill="#2b2216"/>
+  <!-- Marcas de pneus/passos táticos -->
+  <line x1="8" y1="5" x2="16" y2="45" stroke="#312619" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.5"/>
+  <line x1="34" y1="5" x2="42" y2="45" stroke="#312619" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.5"/>
+</svg>

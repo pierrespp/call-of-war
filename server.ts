@@ -36,6 +36,7 @@ import {
 import { MapTileData } from "./src/types/tileset";
 import { BUILTIN_TILESETS } from "./src/core/data/tilesets";
 import { createTileLookup, deriveCoverDataFromTiles } from "./src/utils/tilesetUtils";
+import { getCanonicalMapData } from "./src/core/data/defaultMapsData";
 
 import {
   findDeployZones,
@@ -337,7 +338,9 @@ function isInVisionCone(observer: Unit, target: Unit, room: Room): boolean {
 
 
 function getRoomCover(room: Room, mapId: string): MapCoverData {
+  const canonical = getCanonicalMapData(mapId);
   const editorData: MapCoverData = {
+    ...(canonical?.cover || {}),
     ...(globalCoverData[mapId] || {}),
     ...(room.coverData[mapId] || {}),
   };
@@ -2970,7 +2973,7 @@ async function startServer() {
 
   app.get("/api/maps/:mapId/tiles", (req, res) => {
     const { mapId } = req.params;
-    const tiles = globalTileData[mapId] || {};
+    const tiles = globalTileData[mapId] || getCanonicalMapData(mapId)?.tiles || {};
     res.json(tiles);
   });
 
@@ -3004,6 +3007,12 @@ async function startServer() {
     if (mission) {
       return res.json(mission.generateCover());
     }
+
+    // Fallback para os dados canônicos pré-definidos do mapa
+    const canonical = getCanonicalMapData(mapId);
+    if (canonical && canonical.cover) {
+      return res.json(canonical.cover);
+    }
     
     res.json({});
   });
@@ -3021,7 +3030,7 @@ async function startServer() {
 
   app.get("/api/maps/:mapId/grid-settings", (req, res) => {
     const { mapId } = req.params;
-    res.json(globalGridSettings[mapId] || DEFAULT_GRID_SETTINGS);
+    res.json(globalGridSettings[mapId] || getCanonicalMapData(mapId)?.gridSettings || DEFAULT_GRID_SETTINGS);
   });
 
   app.post("/api/maps/:mapId/grid-settings", async (req, res) => {

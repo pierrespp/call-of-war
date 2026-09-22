@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#2b3323"/>
+  <!-- Sombra escura no solo -->
+  <path d="M 8 38 C 5 43, 38 48, 45 38 C 48 30, 42 25, 34 26 C 24 24, 12 28, 8 38 Z" fill="#0e130c" opacity="0.6"/>
+  <!-- Corpo da rocha angular e facetada -->
+  <polygon points="12,38 7,24 16,10 32,8 44,18 42,36 28,42" fill="#525860" stroke="#2e3338" stroke-width="1.2"/>
+  <!-- Faceta iluminada superior -->
+  <polygon points="16,10 32,8 38,18 22,22" fill="#757d88"/>
+  <!-- Faceta lateral direita sombreada -->
+  <polygon points="32,8 44,18 42,36 30,32 38,18" fill="#41464e"/>
+  <!-- Musgo tropical nas fissuras -->
+  <path d="M 14 18 Q 18 15, 23 20 Q 20 25, 14 18 Z" fill="#4d8236" opacity="0.8"/>
+  <path d="M 28 26 Q 34 24, 38 29 Q 31 33, 28 26 Z" fill="#3c6b29" opacity="0.8"/>
+  <!-- Fendas e rachaduras -->
+  <path d="M 22 22 L 25 34 L 20 40" fill="none" stroke="#272a2e" stroke-width="1"/>
+</svg>

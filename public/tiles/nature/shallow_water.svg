@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#1b4b5e"/>
+  <!-- Água translúcida mais clara -->
+  <path d="M0 0 L 50 0 L 50 50 L 0 50 Z" fill="#205f75" opacity="0.6"/>
+  <!-- Pedras de travessia emergentes da água -->
+  <!-- Pedra 1 -->
+  <ellipse cx="14" cy="18" rx="8" ry="6" fill="#1b2024" opacity="0.4"/>
+  <ellipse cx="13" cy="16" rx="7" ry="5" fill="#62686f" stroke="#3d4248" stroke-width="1"/>
+  <ellipse cx="12" cy="15" rx="4" ry="2" fill="#88919b" opacity="0.6"/>
+  <!-- Pedra 2 central -->
+  <ellipse cx="32" cy="24" rx="9" ry="7" fill="#1b2024" opacity="0.4"/>
+  <ellipse cx="31" cy="22" rx="8" ry="6" fill="#585e65" stroke="#353a3f" stroke-width="1"/>
+  <ellipse cx="30" cy="20" rx="5" ry="3" fill="#7a838d" opacity="0.7"/>
+  <!-- Pedra 3 -->
+  <ellipse cx="18" cy="38" rx="7" ry="5" fill="#1b2024" opacity="0.4"/>
+  <ellipse cx="17" cy="36" rx="6" ry="4" fill="#666c74" stroke="#40454b" stroke-width="1"/>
+  <!-- Ondas suaves contornando as pedras -->
+  <path d="M 6 18 Q 13 22, 21 18" fill="none" stroke="#a2eaf5" stroke-width="1" opacity="0.8"/>
+  <path d="M 23 24 Q 31 29, 41 24" fill="none" stroke="#a2eaf5" stroke-width="1" opacity="0.8"/>
+</svg>

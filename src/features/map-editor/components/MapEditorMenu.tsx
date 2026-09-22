@@ -4,7 +4,15 @@ import { useMaps } from '@/src/core/contexts/MapContext';
 import { CoverType, MapCoverData } from '@/src/types/game';
 import { TileSet, TileDefinition, TileCategory, MapTileData, MapCellTile } from '@/src/types/tileset';
 import { BUILTIN_TILESETS } from '@/src/core/data/tilesets';
-import { createTileLookup, deriveCoverDataFromTiles, generateUrbanTacticalPreset, validateTileSetManifest } from '@/src/utils/tilesetUtils';
+import {
+  createTileLookup,
+  deriveCoverDataFromTiles,
+  generateUrbanTacticalPreset,
+  generateJungleRiverPreset,
+  generateForestCampPreset,
+  validateTileSetManifest
+} from '@/src/utils/tilesetUtils';
+import { getCanonicalMapData } from '@/src/core/data/defaultMapsData';
 import { validateDeployZones } from '@/src/features/combat/utils/pathfinding';
 import {
   Shield, ShieldAlert, ArrowLeft, Save, Eraser, Square, Droplet, Flag,
@@ -143,19 +151,42 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
           fetch(`/api/maps/${selectedMap}/tiles`),
         ]);
         
+        let curCover: MapCoverData = {};
+        let curGrid: MapGridSettings = DEFAULT_GRID_SETTINGS;
+        let curTiles: MapTileData = {};
+
         if (coverResp.ok) {
-          const data = await coverResp.json();
-          setCoverData(data);
+          curCover = await coverResp.json();
         }
         
         if (gridResp.ok) {
-          const data = await gridResp.json();
-          setGridSettings(data);
+          curGrid = await gridResp.json();
         }
 
         if (tileResp.ok) {
-          const data = await tileResp.json();
-          setTileData(data || {});
+          curTiles = (await tileResp.json()) || {};
+        }
+
+        // Se o mapa não tiver dados customizados salvos no servidor/Firestore,
+        // carrega o preset canônico completo do tema correspondente
+        const canonical = getCanonicalMapData(selectedMap);
+        if (canonical && Object.keys(curTiles).length === 0 && Object.keys(curCover).length === 0) {
+          curTiles = canonical.tiles;
+          curCover = canonical.cover;
+          curGrid = canonical.gridSettings;
+        }
+
+        setCoverData(curCover);
+        setGridSettings(curGrid);
+        setTileData(curTiles);
+
+        // Sugere automaticamente o tileset temático mais adequado para o mapa ativo
+        if (selectedMap === 'selva_rio') {
+          setActiveTileSetId('nature_jungle');
+        } else if (selectedMap === 'acampamento') {
+          setActiveTileSetId('military_camp');
+        } else if (selectedMap === 'cidade_ruinas') {
+          setActiveTileSetId('urban_ruins');
         }
 
         // Load background map image
@@ -582,6 +613,45 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
     needsRedraw.current = true;
   };
 
+  const applyPreset = (presetName: 'urban' | 'jungle' | 'camp') => {
+    const width = mapInfo?.gridWidth || 40;
+    const height = mapInfo?.gridHeight || 40;
+    let generated: { tiles: MapTileData; cover: MapCoverData };
+
+    if (presetName === 'jungle') {
+      generated = generateJungleRiverPreset({ gridWidth: width, gridHeight: height });
+      setActiveTileSetId('nature_jungle');
+    } else if (presetName === 'camp') {
+      generated = generateForestCampPreset({ gridWidth: width, gridHeight: height });
+      setActiveTileSetId('military_camp');
+    } else {
+      generated = generateUrbanTacticalPreset({ gridWidth: width, gridHeight: height });
+      setActiveTileSetId('urban_ruins');
+    }
+
+    // Pré-carregamento imediato de imagens
+    Object.values(generated.tiles).forEach(t => {
+      if (!t) return;
+      const def = tileLookup.current[t.tileId];
+      if (def && !tileImagesRef.current[t.tileId]) {
+        const img = new Image();
+        img.src = getImageUrl(def.imagePath);
+        img.onload = () => {
+          tileImagesRef.current[t.tileId] = img;
+          needsRedraw.current = true;
+        };
+      }
+    });
+
+    tileDataRef.current = generated.tiles;
+    coverDataRef.current = generated.cover;
+    setTileData({ ...generated.tiles });
+    setCoverData({ ...generated.cover });
+    setValidationError(null);
+    setSavedAt(null);
+    needsRedraw.current = true;
+  };
+
   if (mapsLoading && !selectedMap) {
     return (
       <div className="flex bg-neutral-900 h-screen w-full text-white items-center justify-center">
@@ -690,6 +760,27 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
                 </button>
               </div>
 
+              {/* Seletor de Tileset */}
+              <div>
+                <label className="block text-[10px] text-neutral-400 font-bold mb-1 uppercase tracking-wider">Tileset Temático</label>
+                <select
+                  value={activeTileSetId}
+                  onChange={(e) => {
+                    const nextId = e.target.value;
+                    setActiveTileSetId(nextId);
+                    const setDef = BUILTIN_TILESETS.find(s => s.id === nextId);
+                    if (setDef && setDef.tiles.length > 0) {
+                      setSelectedTileId(setDef.tiles[0].id);
+                    }
+                  }}
+                  className="w-full bg-neutral-950 border border-white/10 text-white rounded-xl p-2 text-xs font-semibold focus:outline-none focus:border-indigo-500"
+                >
+                  {BUILTIN_TILESETS.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Seletor de Categorias */}
               <div className="flex flex-wrap gap-1">
                 {(['all', 'floor', 'wall', 'cover', 'door', 'liquid'] as (TileCategory | 'all')[]).map(cat => (
@@ -749,43 +840,38 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
                 </div>
               )}
 
-              {/* Botão de Geração Rápida de Layout Urbano */}
-              <div className="pt-2 border-t border-neutral-800 flex flex-col gap-2">
+              {/* Botões de Geração Rápida de Layouts Temáticos */}
+              <div className="pt-2 border-t border-neutral-800 flex flex-col gap-1.5">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Geradores Táticos Temáticos</span>
                 <button
-                  onClick={() => {
-                    const width = mapInfo?.gridWidth || 40;
-                    const height = mapInfo?.gridHeight || 40;
-                    const generated = generateUrbanTacticalPreset({
-                      gridWidth: width,
-                      gridHeight: height,
-                    });
-
-                    // Forçar pré-carregamento de imagens dos novos tiles se necessário
-                    Object.values(generated.tiles).forEach(t => {
-                      if (!t) return;
-                      const def = tileLookup.current[t.tileId];
-                      if (def && !tileImagesRef.current[t.tileId]) {
-                        const img = new Image();
-                        img.src = getImageUrl(def.imagePath);
-                        img.onload = () => {
-                          tileImagesRef.current[t.tileId] = img;
-                          needsRedraw.current = true;
-                        };
-                      }
-                    });
-
-                    tileDataRef.current = generated.tiles;
-                    coverDataRef.current = generated.cover;
-                    setTileData({ ...generated.tiles });
-                    setCoverData({ ...generated.cover });
-                    setValidationError(null);
-                    setSavedAt(null);
-                    needsRedraw.current = true;
-                  }}
-                  className="w-full flex items-center justify-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-indigo-300 border border-indigo-500/30 font-bold py-2 rounded-xl text-xs transition-all shadow active:scale-[0.98]"
+                  onClick={() => applyPreset('urban')}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-neutral-800/80 hover:bg-neutral-700 text-indigo-300 border border-indigo-500/20 font-bold rounded-xl text-xs transition-all shadow active:scale-[0.98]"
                 >
-                  <Wand2 size={14} className="text-indigo-400" />
-                  Gerar Layout Urbano Base
+                  <span className="flex items-center gap-2">
+                    <Wand2 size={13} className="text-indigo-400" />
+                    Cidade em Ruínas
+                  </span>
+                  <span className="text-[10px] text-neutral-400">40×40 Urbano</span>
+                </button>
+                <button
+                  onClick={() => applyPreset('jungle')}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-neutral-800/80 hover:bg-neutral-700 text-emerald-300 border border-emerald-500/20 font-bold rounded-xl text-xs transition-all shadow active:scale-[0.98]"
+                >
+                  <span className="flex items-center gap-2">
+                    <Droplet size={13} className="text-emerald-400" />
+                    Selva com Rio
+                  </span>
+                  <span className="text-[10px] text-neutral-400">40×40 Fluvial</span>
+                </button>
+                <button
+                  onClick={() => applyPreset('camp')}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-neutral-800/80 hover:bg-neutral-700 text-amber-300 border border-amber-500/20 font-bold rounded-xl text-xs transition-all shadow active:scale-[0.98]"
+                >
+                  <span className="flex items-center gap-2">
+                    <Flag size={13} className="text-amber-400" />
+                    Acampamento na Floresta
+                  </span>
+                  <span className="text-[10px] text-neutral-400">40×40 Fortificado</span>
                 </button>
               </div>
             </div>

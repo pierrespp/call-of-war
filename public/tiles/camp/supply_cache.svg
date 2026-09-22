@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#2d2920"/>
+  <!-- Sombra projetada -->
+  <rect x="5" y="8" width="40" height="38" fill="#110f0b" opacity="0.6"/>
+  <!-- Caixa militar 1 (verde-oliva com trancas pretas) -->
+  <rect x="5" y="8" width="24" height="20" rx="1.5" fill="#4b553e" stroke="#2c3324" stroke-width="1.2"/>
+  <line x1="5" y1="18" x2="29" y2="18" stroke="#2c3324" stroke-width="1"/>
+  <rect x="15" y="16" width="4" height="4" fill="#d97706"/>
+  <!-- Caixa militar 2 (madeira reforçada) -->
+  <rect x="23" y="14" width="22" height="24" fill="#695333" stroke="#362917" stroke-width="1.2"/>
+  <line x1="23" y1="14" x2="45" y2="38" stroke="#4a3a24" stroke-width="1"/>
+  <line x1="45" y1="14" x2="23" y2="38" stroke="#4a3a24" stroke-width="1"/>
+  <!-- Galão militar de combustível verde Jerrycan -->
+  <rect x="8" y="26" width="13" height="18" rx="2" fill="#364935" stroke="#1d281c" stroke-width="1"/>
+  <rect x="12" y="23" width="5" height="3" fill="#1d281c"/>
+  <line x1="10" y1="30" x2="19" y2="40" stroke="#253524" stroke-width="1"/>
+  <line x1="19" y1="30" x2="10" y2="40" stroke="#253524" stroke-width="1"/>
+  <!-- Lona camuflada cobrindo parte do estoque -->
+  <path d="M 20 8 Q 36 6, 47 16 L 38 24 Z" fill="#586348" stroke="#323b28" stroke-width="1"/>
+</svg>

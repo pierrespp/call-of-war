@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#24301d"/>
+  <!-- Sombra inferior -->
+  <ellipse cx="25" cy="30" rx="19" ry="14" fill="#0d140a" opacity="0.6"/>
+  <!-- Camada de folhas de fundo -->
+  <circle cx="16" cy="22" r="10" fill="#1b4317"/>
+  <circle cx="34" cy="22" r="10" fill="#1e4d1a"/>
+  <circle cx="25" cy="17" r="11" fill="#285e23"/>
+  <!-- Folhagem frontal detalhada com nervuras -->
+  <circle cx="20" cy="28" r="9" fill="#35782e"/>
+  <circle cx="32" cy="27" r="8.5" fill="#3e8836"/>
+  <circle cx="25" cy="23" r="8" fill="#4ea544"/>
+  <!-- Destaques de luz solar tropical -->
+  <path d="M 23 15 Q 25 10, 27 15 Q 26 20, 23 15 Z" fill="#75cb6b" opacity="0.8"/>
+  <path d="M 18 24 Q 15 20, 19 22 Z" fill="#62bd57" opacity="0.7"/>
+  <path d="M 33 24 Q 36 21, 32 23 Z" fill="#62bd57" opacity="0.7"/>
+</svg>

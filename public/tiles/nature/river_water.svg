@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#113344"/>
+  <!-- Camadas de água fluida em correnteza -->
+  <path d="M-10 12 C 10 6, 25 18, 60 10 L 60 28 C 35 34, 15 22, -10 30 Z" fill="#194c63" opacity="0.8"/>
+  <path d="M-10 24 C 15 18, 30 30, 60 22 L 60 44 C 35 48, 10 38, -10 46 Z" fill="#133d50" opacity="0.9"/>
+  <!-- Ondulações e cristas de espuma branca/turquesa -->
+  <path d="M2 14 Q 16 8, 30 15 T 48 12" fill="none" stroke="#5cd2e6" stroke-width="1.2" opacity="0.6"/>
+  <path d="M8 26 Q 22 20, 36 27 T 52 24" fill="none" stroke="#7ee2f2" stroke-width="1.4" opacity="0.7"/>
+  <path d="M0 38 Q 14 32, 28 39 T 46 36" fill="none" stroke="#4bb8cb" stroke-width="1" opacity="0.5"/>
+</svg>

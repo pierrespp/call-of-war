@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#2d2920"/>
+  <!-- Sombra da torre de vigia -->
+  <rect x="6" y="6" width="38" height="38" fill="#110f0b" opacity="0.6"/>
+  <!-- Plataforma de assoalho de madeira superior vista de cima com parapeito -->
+  <rect x="7" y="7" width="36" height="36" fill="#4d3b25" stroke="#2b2013" stroke-width="1.5"/>
+  <!-- Estrutura interna da cabine / parapeito blindado -->
+  <rect x="12" y="12" width="26" height="26" fill="#695133" stroke="#382917" stroke-width="1.2"/>
+  <!-- Escotilha e escada de subida militar -->
+  <rect x="18" y="18" width="14" height="14" fill="#1c160f" stroke="#0e0a06" stroke-width="1"/>
+  <line x1="20" y1="21" x2="30" y2="21" stroke="#a38258" stroke-width="1"/>
+  <line x1="20" y1="25" x2="30" y2="25" stroke="#a38258" stroke-width="1"/>
+  <line x1="20" y1="29" x2="30" y2="29" stroke="#a38258" stroke-width="1"/>
+  <!-- 4 Pilares angulares nos cantos -->
+  <rect x="6" y="6" width="6" height="6" fill="#22190f" stroke="#120c06" stroke-width="0.8"/>
+  <rect x="38" y="6" width="6" height="6" fill="#22190f" stroke="#120c06" stroke-width="0.8"/>
+  <rect x="6" y="38" width="6" height="6" fill="#22190f" stroke="#120c06" stroke-width="0.8"/>
+  <rect x="38" y="38" width="6" height="6" fill="#22190f" stroke="#120c06" stroke-width="0.8"/>
+  <!-- Holofote / canofone de vigia apontado -->
+  <circle cx="37" cy="13" r="3" fill="#e2e8f0" stroke="#475569" stroke-width="0.8"/>
+</svg>

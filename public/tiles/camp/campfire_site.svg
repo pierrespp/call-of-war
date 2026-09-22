@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#2d281e"/>
+  <!-- Halo de calor e luz alaranjada -->
+  <circle cx="25" cy="25" r="22" fill="#e66000" opacity="0.15"/>
+  <circle cx="25" cy="25" r="16" fill="#f59e0b" opacity="0.25"/>
+  <!-- Círculo de pedras de proteção -->
+  <ellipse cx="14" cy="18" rx="5" ry="4" fill="#5a6068" stroke="#33373c" stroke-width="0.8"/>
+  <ellipse cx="25" cy="14" rx="5" ry="4" fill="#666c75" stroke="#33373c" stroke-width="0.8"/>
+  <ellipse cx="36" cy="18" rx="5" ry="4" fill="#555a61" stroke="#33373c" stroke-width="0.8"/>
+  <ellipse cx="38" cy="28" rx="5" ry="4" fill="#60666e" stroke="#33373c" stroke-width="0.8"/>
+  <ellipse cx="31" cy="36" rx="5" ry="4" fill="#52575e" stroke="#33373c" stroke-width="0.8"/>
+  <ellipse cx="19" cy="36" rx="5" ry="4" fill="#636972" stroke="#33373c" stroke-width="0.8"/>
+  <ellipse cx="12" cy="28" rx="5" ry="4" fill="#585e66" stroke="#33373c" stroke-width="0.8"/>
+  <!-- Troncos de lenha cruzados -->
+  <line x1="16" y1="16" x2="34" y2="34" stroke="#4a3118" stroke-width="3" stroke-linecap="round"/>
+  <line x1="16" y1="34" x2="34" y2="16" stroke="#5c3d1e" stroke-width="3" stroke-linecap="round"/>
+  <!-- Chamas incandescentes e brasas -->
+  <ellipse cx="25" cy="25" rx="7" ry="7" fill="#dc2626"/>
+  <ellipse cx="25" cy="24" rx="5" ry="5" fill="#f97316"/>
+  <ellipse cx="25" cy="23" rx="3" ry="3" fill="#fde047"/>
+  <!-- Fagulhas subindo -->
+  <circle cx="23" cy="10" r="0.8" fill="#fef08a"/>
+  <circle cx="28" cy="8" r="0.9" fill="#fde047"/>
+  <circle cx="21" cy="6" r="0.6" fill="#f97316"/>
+</svg>

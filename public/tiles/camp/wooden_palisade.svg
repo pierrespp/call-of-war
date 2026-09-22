@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <rect width="50" height="50" fill="#2d281f"/>
+  <!-- Sombra das estacas -->
+  <rect x="5" y="24" width="40" height="22" fill="#110f0b" opacity="0.6"/>
+  <!-- Troncos verticais apontados alinhados -->
+  <!-- Estaca 1 -->
+  <polygon points="5,42 5,14 9,8 13,14 13,42" fill="#694d29" stroke="#332412" stroke-width="1"/>
+  <!-- Estaca 2 -->
+  <polygon points="14,42 14,12 18,6 22,12 22,42" fill="#785931" stroke="#332412" stroke-width="1"/>
+  <!-- Estaca 3 -->
+  <polygon points="23,42 23,15 27,9 31,15 31,42" fill="#614623" stroke="#332412" stroke-width="1"/>
+  <!-- Estaca 4 -->
+  <polygon points="32,42 32,13 36,7 40,13 40,42" fill="#75562e" stroke="#332412" stroke-width="1"/>
+  <!-- Estaca 5 -->
+  <polygon points="41,42 41,16 45,10 49,16 49,42" fill="#664b27" stroke="#332412" stroke-width="1"/>
+  <!-- Travessa horizontal de amarração reforçada -->
+  <rect x="3" y="26" width="44" height="6" fill="#4d371d" stroke="#261b0c" stroke-width="1"/>
+  <!-- Arame farpado enrolado na travessa -->
+  <path d="M 4 28 Q 12 32, 20 28 T 36 28 T 48 28" fill="none" stroke="#9da4ab" stroke-width="1"/>
+  <line x1="14" y1="26" x2="16" y2="32" stroke="#bdc3c9" stroke-width="1.2"/>
+  <line x1="30" y1="26" x2="32" y2="32" stroke="#bdc3c9" stroke-width="1.2"/>
+</svg>
