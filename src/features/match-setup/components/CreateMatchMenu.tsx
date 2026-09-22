@@ -436,7 +436,7 @@ export function CreateMatchMenu({
         <div 
           className="absolute inset-0 bg-cover bg-center transition-all duration-1000 scale-105"
           style={{ 
-            backgroundImage: `url(${maps[selectedMap]?.imagePath || ""})`,
+            backgroundImage: maps[selectedMap]?.imagePath ? `url(${getImageUrl(maps[selectedMap].imagePath)})` : "",
             filter: "brightness(1.2) contrast(1.1) saturate(1.1)"
           }}
         />

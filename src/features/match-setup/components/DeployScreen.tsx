@@ -357,7 +357,7 @@ export function DeployScreen({ roomId, playerToken, playerTeam, state, onLeave, 
           {/* Map image background (se existir) */}
           {mapInfo.imagePath && (
             <img
-              src={mapInfo.imagePath}
+              src={getImageUrl(mapInfo.imagePath)}
               alt={`Map ${mapInfo.name}`}
               className="absolute inset-0 w-full h-full object-cover pointer-events-none"
               style={{ zIndex: 0 }}

@@ -17,7 +17,8 @@ import { validateDeployZones } from '@/src/features/combat/utils/pathfinding';
 import {
   Shield, ShieldAlert, ArrowLeft, Save, Eraser, Square, Droplet, Flag,
   Grid3x3, RotateCcw, RotateCw, DoorClosed, DoorOpen, AppWindow, RefreshCcw,
-  AlertTriangle, Skull, LogOut, Copy, Check, ClipboardPaste, Layers, Palette, Wand2, UploadCloud
+  AlertTriangle, Skull, LogOut, Copy, Check, ClipboardPaste, Layers, Palette, Wand2, UploadCloud,
+  Maximize2, ZoomIn, ZoomOut
 } from "lucide-react";
 import { useImages } from '@/src/core/contexts/ImageContext';
 import { getImageUrl } from '@/src/lib/utils';
@@ -132,12 +133,45 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
     });
   }, []);
 
+  // Centraliza e enquadra o mapa no container visual automaticamente
+  const centerCameraOnMap = useCallback((mapId?: string) => {
+    const id = mapId || selectedMap;
+    const currentMap = maps[id];
+    if (!currentMap) return;
+
+    const cellSize = gridSettingsRef.current?.cellSize || CELL_SIZE;
+    const mapWidthPx = currentMap.gridWidth * cellSize;
+    const mapHeightPx = currentMap.gridHeight * cellSize;
+
+    // Coloca a câmera exatamente no centro do mapa
+    cameraRef.current = {
+      x: mapWidthPx / 2,
+      y: mapHeightPx / 2,
+    };
+
+    // Ajusta o zoom para enquadrar perfeitamente no container da tela
+    const container = containerRef.current;
+    if (container && container.clientWidth > 0 && container.clientHeight > 0) {
+      const padding = 0.85; // 15% de margem de respiro
+      const zoomX = (container.clientWidth * padding) / mapWidthPx;
+      const zoomY = (container.clientHeight * padding) / mapHeightPx;
+      const fitZoom = Math.min(zoomX, zoomY);
+      zoomRef.current = Math.max(0.1, Math.min(1.5, Number(fitZoom.toFixed(3))));
+    } else {
+      zoomRef.current = 0.35;
+    }
+
+    needsRedraw.current = true;
+  }, [maps, selectedMap]);
+
   // Set initial selected map
   useEffect(() => {
     if (!selectedMap && Object.keys(maps).length > 0) {
-      setSelectedMap(Object.keys(maps)[0]);
+      const firstMap = Object.keys(maps)[0];
+      setSelectedMap(firstMap);
+      centerCameraOnMap(firstMap);
     }
-  }, [maps, selectedMap]);
+  }, [maps, selectedMap, centerCameraOnMap]);
 
   // When map changes, fetch tiles & cover data
   useEffect(() => {
@@ -145,10 +179,11 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
       if (!selectedMap) return;
       setIsFetching(true);
       try {
+        const apiBase = (import.meta.env.VITE_API_URL ?? "") + "/api";
         const [coverResp, gridResp, tileResp] = await Promise.all([
-          fetch(`/api/maps/${selectedMap}/cover`),
-          fetch(`/api/maps/${selectedMap}/grid-settings`),
-          fetch(`/api/maps/${selectedMap}/tiles`),
+          fetch(`${apiBase}/maps/${selectedMap}/cover`),
+          fetch(`${apiBase}/maps/${selectedMap}/grid-settings`),
+          fetch(`${apiBase}/maps/${selectedMap}/tiles`),
         ]);
         
         let curCover: MapCoverData = {};
@@ -196,12 +231,13 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
           img.src = imgUrl;
           img.onload = () => {
             mapImageRef.current = img;
+            centerCameraOnMap(selectedMap);
             needsRedraw.current = true;
           };
         } else {
           mapImageRef.current = null;
-          needsRedraw.current = true;
         }
+        centerCameraOnMap(selectedMap);
       } catch (err) {
         console.error("Failed to fetch map data:", err);
       } finally {
@@ -212,7 +248,7 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
     };
     
     fetchData();
-  }, [selectedMap, getMapImage]);
+  }, [selectedMap, getMapImage, centerCameraOnMap]);
 
   const mapInfo = selectedMap ? maps[selectedMap] : null;
   const validation = validateDeployZones(coverData);
@@ -568,18 +604,19 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
     setIsSyncing(true);
     setValidationError(null);
     try {
+      const apiBase = (import.meta.env.VITE_API_URL ?? "") + "/api";
       const [tileResp, coverResp, gridResp] = await Promise.all([
-        fetch(`/api/maps/${selectedMap}/tiles`, {
+        fetch(`${apiBase}/maps/${selectedMap}/tiles`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(tileData),
         }),
-        fetch(`/api/maps/${selectedMap}/cover`, {
+        fetch(`${apiBase}/maps/${selectedMap}/cover`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(coverData),
         }),
-        fetch(`/api/maps/${selectedMap}/grid-settings`, {
+        fetch(`${apiBase}/maps/${selectedMap}/grid-settings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(gridSettings),
@@ -705,8 +742,9 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
               className="w-full bg-neutral-900/80 border border-white/10 text-white rounded-xl p-2.5 focus:outline-none focus:border-indigo-500 font-bold text-xs"
               value={selectedMap}
               onChange={(e) => { 
-                setSelectedMap(e.target.value); 
-                cameraRef.current = { x: 0, y: 0 }; 
+                const newMapId = e.target.value;
+                setSelectedMap(newMapId); 
+                centerCameraOnMap(newMapId);
                 setValidationError(null); 
                 setSavedAt(null);
                 needsRedraw.current = true;
@@ -1027,6 +1065,39 @@ export function MapEditorMenu({ onBack }: { onBack: () => void }) {
           ref={canvasRef}
           className="absolute inset-0 block"
         />
+
+        {/* Floating Camera & Zoom Controls */}
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 bg-neutral-900/90 backdrop-blur-md p-1.5 rounded-2xl border border-white/10 shadow-2xl">
+          <button
+            onClick={() => centerCameraOnMap()}
+            title="Centralizar e Enquadrar Mapa"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+          >
+            <Maximize2 size={13} />
+            <span>Centralizar</span>
+          </button>
+          <div className="h-4 w-[1px] bg-white/10 mx-0.5" />
+          <button
+            onClick={() => {
+              zoomRef.current = Math.min(zoomRef.current * 1.25, 4);
+              needsRedraw.current = true;
+            }}
+            title="Aproximar Zoom"
+            className="p-1.5 hover:bg-white/10 text-neutral-300 hover:text-white rounded-lg transition-all active:scale-95"
+          >
+            <ZoomIn size={15} />
+          </button>
+          <button
+            onClick={() => {
+              zoomRef.current = Math.max(zoomRef.current / 1.25, 0.05);
+              needsRedraw.current = true;
+            }}
+            title="Afastar Zoom"
+            className="p-1.5 hover:bg-white/10 text-neutral-300 hover:text-white rounded-lg transition-all active:scale-95"
+          >
+            <ZoomOut size={15} />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { GameMap, MAPS } from '@/src/core/data/constants';
-
-// NOTE: This context has been simplified to remove the fetching of AI-generated maps.
-// It now only provides the static maps defined in the constants file.
+import { getImageUrl } from '@/src/lib/utils';
 
 interface MapContextType {
   maps: Record<string, GameMap>;
@@ -11,25 +9,37 @@ interface MapContextType {
   saveMap: (map: GameMap) => Promise<void>;
 }
 
+const normalizeMap = (m: GameMap): GameMap => ({
+  ...m,
+  imagePath: getImageUrl(m.imagePath),
+});
+
+const normalizeMapRecord = (record: Record<string, GameMap>): Record<string, GameMap> => {
+  const out: Record<string, GameMap> = {};
+  for (const [k, v] of Object.entries(record)) {
+    out[k] = normalizeMap(v);
+  }
+  return out;
+};
+
 const MapContext = createContext<MapContextType | undefined>(undefined);
 
 export const MapProvider = ({ children }: { children: ReactNode }) => {
-  // The `maps` state is now initialized directly with the static MAPS.
-  // The `loading` state is set to false as the data is available synchronously.
-  const [maps, setMaps] = useState<Record<string, GameMap>>(MAPS);
+  const [maps, setMaps] = useState<Record<string, GameMap>>(() => normalizeMapRecord(MAPS));
   const [loading, setLoading] = useState(true);
 
   const loadMaps = async () => {
     try {
       setLoading(true);
-      const resp = await fetch('/api/maps/all');
+      const apiBase = (import.meta.env.VITE_API_URL ?? "") + "/api";
+      const resp = await fetch(`${apiBase}/maps/all`);
       if (!resp.ok) throw new Error('Erro ao buscar mapas');
       const data = await resp.json();
       
-      // Convert array to record
+      // Convert array to record with normalized paths
       const mapRecord: Record<string, GameMap> = {};
       data.forEach((m: GameMap) => {
-        mapRecord[m.id] = m;
+        mapRecord[m.id] = normalizeMap(m);
       });
       
       setMaps(prev => ({ ...prev, ...mapRecord }));

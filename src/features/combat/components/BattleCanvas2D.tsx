@@ -279,7 +279,7 @@ export const BattleCanvas2D: React.FC<BattleCanvas2DProps> = ({
         {/* Map image background (se existir) */}
         {mapDef && (
           <img
-            src={mapDef.imagePath}
+            src={getImageUrl(mapDef.imagePath)}
             alt={mapDef.name}
             className="absolute inset-0 w-full h-full object-cover pointer-events-none"
             style={{ zIndex: 0 }}
