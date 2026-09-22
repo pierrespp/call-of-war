@@ -60,7 +60,12 @@ import { hasLineOfSight } from "./src/features/combat/utils/lineOfSight";
 import { normalizeAngle, angleDegBetween, distanceMeters } from "./src/utils/gameUtils";
 
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const rootDir =
+  typeof __dirname !== "undefined"
+    ? (__dirname.endsWith("dist") ? path.join(__dirname, "..") : __dirname)
+    : typeof import.meta !== "undefined" && import.meta.url
+      ? path.dirname(fileURLToPath(import.meta.url))
+      : process.cwd();
 
 // ── Persistent storage for global map cover data (Map Editor) ───────────────
 
@@ -630,7 +635,7 @@ async function deleteImageFile(imageUrl: string): Promise<void> {
     if (imageUrl.includes("/api/maps/img/")) {
       const fileName = imageUrl.replace("/api/maps/img/", "");
       const targetPath = path.join(
-        __dirname,
+        rootDir,
         "data",
         "maps",
         decodeURIComponent(fileName),
@@ -688,7 +693,7 @@ async function startServer() {
   }
 
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
   // 500 MB limit for huge image base64 payloads
   app.use(express.json({ limit: "500mb" }));
   app.use(express.urlencoded({ limit: "500mb", extended: true }));
@@ -702,7 +707,14 @@ async function startServer() {
   ];
   app.use((req, res, next) => {
     const origin = req.headers.origin ?? "";
-    if (ALLOWED_ORIGINS.includes(origin)) {
+    const isAllowed =
+      !origin ||
+      ALLOWED_ORIGINS.includes(origin) ||
+      origin.endsWith(".onrender.com") ||
+      origin.endsWith(".github.io") ||
+      (process.env.ALLOWED_ORIGIN && origin === process.env.ALLOWED_ORIGIN);
+
+    if (isAllowed && origin) {
       res.setHeader("Access-Control-Allow-Origin", origin);
     }
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
@@ -3287,7 +3299,7 @@ async function startServer() {
   app.get("/api/maps/img/:fileName", (req, res) => {
     const fileName = req.params.fileName;
     const targetPath = path.join(
-      __dirname,
+      rootDir,
       "data",
       "maps",
       decodeURIComponent(fileName),
@@ -3304,7 +3316,7 @@ async function startServer() {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
-      root: __dirname,
+      root: rootDir,
     });
     app.use(vite.middlewares);
     
@@ -3312,7 +3324,7 @@ async function startServer() {
       if (req.originalUrl.startsWith("/api")) return next();
       const url = req.originalUrl;
       try {
-        let template = fs.readFileSync(path.resolve(__dirname, "index.html"), "utf-8");
+        let template = fs.readFileSync(path.resolve(rootDir, "index.html"), "utf-8");
         template = await vite.transformIndexHtml(url, template);
         res.status(200).set({ "Content-Type": "text/html" }).end(template);
       } catch (e) {
@@ -3321,9 +3333,14 @@ async function startServer() {
       }
     });
   } else {
-    const distPath = path.join(process.cwd(), "dist");
+    const distPath = path.join(rootDir, "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
+    app.get("*", (req, res) => {
+      if (req.path.startsWith("/api")) {
+        return res.status(404).json({ error: "Endpoint não encontrado" });
+      }
+      res.sendFile(path.join(distPath, "index.html"));
+    });
   }
 
   app.listen(PORT, "0.0.0.0", () =>
